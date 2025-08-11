@@ -1,0 +1,88 @@
+@page "/test-buttons"
+@inject NavigationManager Navigation
+
+<PageTitle>Test Buttons - Home Maintenance</PageTitle>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Test Buttons</h1>
+            <p>This page is to test if button clicks are working properly.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Simple Button Tests</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" @onclick="TestSimpleClick">
+                            <i class="bi bi-check-circle"></i> Simple Click Test
+                        </button>
+                        
+                        <button class="btn btn-success" @onclick="@(() => TestLambdaClick(1))">
+                            <i class="bi bi-arrow-right"></i> Lambda Click Test (ID: 1)
+                        </button>
+                        
+                        <button class="btn btn-warning" @onclick="@(() => TestLambdaClick(2))">
+                            <i class="bi bi-arrow-right"></i> Lambda Click Test (ID: 2)
+                        </button>
+                        
+                        <button class="btn btn-info" @onclick="@(() => TestNavigation())">
+                            <i class="bi bi-house"></i> Navigation Test
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Console Output</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>Instructions:</strong>
+                        <ol>
+                            <li>Open browser Developer Tools (F12)</li>
+                            <li>Go to the Console tab</li>
+                            <li>Click the buttons above</li>
+                            <li>You should see console messages</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="alert alert-success">
+                        <strong>Expected Results:</strong>
+                        <ul>
+                            <li>Simple Click: Should show "Simple button clicked!"</li>
+                            <li>Lambda Clicks: Should show "Lambda click with ID: X"</li>
+                            <li>Navigation: Should navigate to home page</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private void TestSimpleClick()
+    {
+        Console.WriteLine("Simple button clicked!");
+    }
+
+    private void TestLambdaClick(int id)
+    {
+        Console.WriteLine($"Lambda click with ID: {id}");
+    }
+
+    private void TestNavigation()
+    {
+        Console.WriteLine("Navigation test clicked!");
+        Navigation.NavigateTo("/");
+    }
+} 

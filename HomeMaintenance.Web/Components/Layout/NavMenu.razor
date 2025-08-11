@@ -1,0 +1,88 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">
+            <i class="bi bi-house-heart-fill me-2"></i>
+            Home Maintenance
+        </a>
+        <div class="d-flex align-items-center">
+            <span class="navbar-text me-3">
+                <i class="bi bi-clock"></i>
+                @DateTime.Now.ToString("MMM dd, yyyy")
+            </span>
+        </div>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="nav flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <i class="bi bi-house-door-fill me-2" aria-hidden="true"></i> 
+                <span>Dashboard</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="appliances">
+                <i class="bi bi-tools me-2" aria-hidden="true"></i> 
+                <span>Appliances</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="maintenance-tasks">
+                <i class="bi bi-wrench me-2" aria-hidden="true"></i> 
+                <span>Maintenance Tasks</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="chores">
+                <i class="bi bi-list-check me-2" aria-hidden="true"></i> 
+                <span>Chores</span>
+            </NavLink>
+        </div>
+
+        <hr class="nav-divider">
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="analytics">
+                <i class="bi bi-graph-up me-2" aria-hidden="true"></i> 
+                <span>Analytics</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="projects">
+                <i class="bi bi-kanban me-2" aria-hidden="true"></i> 
+                <span>Projects</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="floor-plans">
+                <i class="bi bi-building me-2" aria-hidden="true"></i> 
+                <span>Floor Plans</span>
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="weather">
+                <i class="bi bi-cloud-sun me-2" aria-hidden="true"></i> 
+                <span>Weather</span>
+            </NavLink>
+        </div>
+
+        <hr class="nav-divider">
+
+        <div class="nav-item px-3 mt-auto">
+            <div class="nav-link text-muted">
+                <i class="bi bi-info-circle me-2" aria-hidden="true"></i> 
+                <span>About</span>
+            </div>
+        </div>
+    </nav>
+</div>
+

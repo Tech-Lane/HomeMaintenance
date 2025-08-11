@@ -1,0 +1,265 @@
+@page "/maintenance-tasks/{Id:int}/edit"
+@using HomeMaintenance.Core.Models
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Maintenance Task - Home Maintenance</PageTitle>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-5">🔧 Edit Maintenance Task</h1>
+                    <p class="lead">Update maintenance task information</p>
+                </div>
+                <a href="/maintenance-tasks/@Id" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Task
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (task != null)
+    {
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Edit Maintenance Task Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <EditForm Model="task" OnValidSubmit="HandleValidSubmit">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Title *</label>
+                                        <InputText class="form-control" @bind-Value="task.Title" />
+                                        <ValidationMessage For="@(() => task.Title)" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Priority</label>
+                                        <InputSelect class="form-select" @bind-Value="task.Priority">
+                                            <option value="Low">Low</option>
+                                            <option value="Medium">Medium</option>
+                                            <option value="High">High</option>
+                                            <option value="Critical">Critical</option>
+                                        </InputSelect>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <InputTextArea class="form-control" rows="3" @bind-Value="task.Description" />
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Frequency *</label>
+                                        <InputSelect class="form-select" @bind-Value="task.Frequency">
+                                            <option value="Daily">Daily</option>
+                                            <option value="Weekly">Weekly</option>
+                                            <option value="Monthly">Monthly</option>
+                                            <option value="Yearly">Yearly</option>
+                                        </InputSelect>
+                                        <ValidationMessage For="@(() => task.Frequency)" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Frequency Interval</label>
+                                        <InputNumber class="form-control" @bind-Value="task.FrequencyInterval" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Next Due Date</label>
+                                        <InputDate class="form-control" @bind-Value="task.NextDueDate" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Estimated Time (minutes)</label>
+                                        <InputNumber class="form-control" @bind-Value="task.EstimatedTimeMinutes" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Estimated Cost</label>
+                                        <InputNumber class="form-control" @bind-Value="task.EstimatedCost" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Associated Appliance</label>
+                                        <InputSelect class="form-select" @bind-Value="task.ApplianceId">
+                                            <option value="">No Appliance</option>
+                                            @if (appliances != null)
+                                            {
+                                                @foreach (var appliance in appliances)
+                                                {
+                                                    <option value="@appliance.Id">@appliance.Name</option>
+                                                }
+                                            }
+                                        </InputSelect>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Instructions</label>
+                                <InputTextArea class="form-control" rows="4" @bind-Value="task.Instructions" />
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <InputCheckbox class="form-check-input" @bind-Value="task.SendReminders" />
+                                        <label class="form-check-label">Send Reminders</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Reminder Days Before</label>
+                                        <InputNumber class="form-control" @bind-Value="task.ReminderDaysBefore" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">
+                                    Cancel
+                                </button>
+                                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span>Saving...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check-circle me-2"></i>
+                                        <span>Save Changes</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (isLoading)
+    {
+        <div class="row">
+            <div class="col">
+                <div class="text-center py-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3">Loading task...</p>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col">
+                <div class="text-center py-5">
+                    <i class="bi bi-exclamation-triangle fs-1 text-warning"></i>
+                    <h3 class="mt-3">Task Not Found</h3>
+                    <p class="text-muted">The maintenance task you're trying to edit doesn't exist or has been removed.</p>
+                    <a href="/maintenance-tasks" class="btn btn-primary">
+                        <i class="bi bi-arrow-left"></i> Back to Tasks
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private MaintenanceTask? task;
+    private IEnumerable<Appliance>? appliances;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTask();
+        await LoadAppliances();
+    }
+
+    private async Task LoadTask()
+    {
+        try
+        {
+            task = await Http.GetFromJsonAsync<MaintenanceTask>($"http://localhost:5062/api/maintenancetasks/{Id}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading task: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadAppliances()
+    {
+        try
+        {
+            appliances = await Http.GetFromJsonAsync<IEnumerable<Appliance>>("http://localhost:5062/api/appliances");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading appliances: {ex.Message}");
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (task == null) return;
+
+        isSubmitting = true;
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"http://localhost:5062/api/maintenancetasks/{Id}", task);
+            if (response.IsSuccessStatusCode)
+            {
+                Navigation.NavigateTo($"/maintenance-tasks/{Id}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating task: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void CancelEdit()
+    {
+        Navigation.NavigateTo($"/maintenance-tasks/{Id}");
+    }
+} 

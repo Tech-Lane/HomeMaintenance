@@ -1,0 +1,51 @@
+﻿@namespace HomeMaintenance.Components
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["HomeMaintenance.Web.styles.css"]" />
+    <ImportMap />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <HeadOutlet />
+</head>
+
+<body>
+    <Routes />
+    <script src="_framework/blazor.server.js"></script>
+    <script src="lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        window.showModal = function (modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                // Remove aria-hidden attribute to fix accessibility issue
+                modal.removeAttribute('aria-hidden');
+                const bootstrapModal = bootstrap.Modal.getOrCreateInstance(modal);
+                bootstrapModal.show();
+            }
+        };
+        
+        window.hideModal = function (modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                const bootstrapModal = bootstrap.Modal.getInstance(modal);
+                if (bootstrapModal) {
+                    bootstrapModal.hide();
+                }
+            }
+        };
+        
+        // Test function to verify JavaScript interop is working
+        window.testBlazorConnection = function () {
+            console.log("JavaScript interop is working!");
+            return "JavaScript interop is working!";
+        };
+    </script>
+</body>
+
+</html>

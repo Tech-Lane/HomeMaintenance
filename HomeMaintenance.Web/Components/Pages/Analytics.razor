@@ -1,0 +1,349 @@
+@page "/analytics"
+@using HomeMaintenance.Core.Models
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>Analytics - Home Maintenance</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-4 fw-bold text-gradient">📊 Analytics Dashboard</h1>
+                    <p class="lead text-muted">Deep insights into your home maintenance patterns</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" @onclick="RefreshData">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <button class="btn btn-primary" @onclick="ExportData">
+                        <i class="bi bi-download"></i> Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-gradient-primary border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="card-title text-white mb-1">@(completionRate?.ToString("P0") ?? "0%")</h3>
+                            <p class="card-text text-white-50 mb-0">Completion Rate</p>
+                            <small class="text-white-75">This month</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-graph-up text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-gradient-success border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="card-title text-white mb-1">@(averageCompletionTime?.ToString("F1") ?? "0")</h3>
+                            <p class="card-text text-white-50 mb-0">Avg. Completion Time</p>
+                            <small class="text-white-75">Days</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-clock text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-gradient-warning border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="card-title text-white mb-1">@(totalMaintenanceCost?.ToString("C") ?? "$0")</h3>
+                            <p class="card-text text-white-50 mb-0">Total Maintenance Cost</p>
+                            <small class="text-white-75">This year</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-currency-dollar text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-gradient-info border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="card-title text-white mb-1">@(mostActiveCategory ?? "N/A")</h3>
+                            <p class="card-text text-white-50 mb-0">Most Active Category</p>
+                            <small class="text-white-75">By frequency</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-tags text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <!-- Completion Trend -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> Completion Trend</h5>
+                </div>
+                <div class="card-body">
+                    <div class="completion-chart">
+                        @for (int i = 0; i < 12; i++)
+                        {
+                            var month = DateTime.Now.AddMonths(-11 + i);
+                            var height = GetCompletionHeight(i);
+                            <div class="chart-bar" style="height: @(height)%; background-color: @GetBarColor(i);">
+                                <span class="bar-label">@month.ToString("MMM")</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Distribution -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Category Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="category-chart">
+                        @foreach (var category in categoryStats)
+                        {
+                            <div class="category-item">
+                                <div class="category-color" style="background-color: @GetCategoryColor(category.Key);"></div>
+                                <div class="category-info">
+                                    <strong>@category.Key</strong>
+                                    <small class="text-muted">@category.Value items</small>
+                                </div>
+                                <div class="category-percentage">
+                                    @(GetCategoryPercentage(category.Value).ToString("P0"))
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Analytics -->
+    <div class="row">
+        <!-- Top Performers -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-trophy"></i> Top Performing Appliances</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        @foreach (var appliance in topAppliances.Take(5))
+                        {
+                            <div class="list-group-item d-flex justify-content-between align-items-center border-0">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <i class="bi bi-tools text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <strong>@appliance.Name</strong>
+                                        <br><small class="text-muted">@appliance.Category</small>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-success">@appliance.MaintenanceTasks?.Count() tasks</span>
+                                    <br><small class="text-muted">@appliance.PurchasePrice?.ToString("C")</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Maintenance Insights -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightbulb"></i> Maintenance Insights</h5>
+                </div>
+                <div class="card-body">
+                    <div class="insights-list">
+                        @if (insights.Any())
+                        {
+                            @foreach (var insight in insights)
+                            {
+                                <div class="insight-item">
+                                    <i class="bi bi-info-circle text-info me-2"></i>
+                                    <span>@insight</span>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <i class="bi bi-lightbulb text-muted" style="font-size: 3rem;"></i>
+                                <h6 class="mt-3 text-muted">No insights yet</h6>
+                                <p class="text-muted">Complete more tasks to generate insights</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<Appliance>? appliances;
+    private IEnumerable<MaintenanceTask>? maintenanceTasks;
+    private IEnumerable<Chore>? chores;
+    private double? completionRate;
+    private double? averageCompletionTime;
+    private decimal? totalMaintenanceCost;
+    private string? mostActiveCategory;
+    private Dictionary<string, int> categoryStats = new();
+    private List<Appliance> topAppliances = new();
+    private List<string> insights = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAnalyticsData();
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadAnalyticsData();
+        StateHasChanged();
+    }
+
+    private async Task ExportData()
+    {
+        // TODO: Implement data export functionality
+        await Task.Delay(100);
+    }
+
+    private async Task LoadAnalyticsData()
+    {
+        try
+        {
+            appliances = await Http.GetFromJsonAsync<IEnumerable<Appliance>>("http://localhost:5062/api/appliances") ?? new List<Appliance>();
+            maintenanceTasks = await Http.GetFromJsonAsync<IEnumerable<MaintenanceTask>>("http://localhost:5062/api/maintenancetasks") ?? new List<MaintenanceTask>();
+            chores = await Http.GetFromJsonAsync<IEnumerable<Chore>>("http://localhost:5062/api/chores") ?? new List<Chore>();
+
+            CalculateAnalytics();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading analytics data: {ex.Message}");
+            appliances = new List<Appliance>();
+            maintenanceTasks = new List<MaintenanceTask>();
+            chores = new List<Chore>();
+        }
+    }
+
+    private void CalculateAnalytics()
+    {
+        // Calculate completion rate
+        var totalItems = (maintenanceTasks?.Count() ?? 0) + (chores?.Count() ?? 0);
+        var completedItems = (maintenanceTasks?.Where(t => t.LastCompletedDate.HasValue)?.Count() ?? 0) + 
+                           (chores?.Where(c => c.LastCompletedDate.HasValue)?.Count() ?? 0);
+        completionRate = totalItems > 0 ? (double)completedItems / totalItems : 0;
+
+        // Calculate average completion time
+        var completedTasks = maintenanceTasks?.Where(t => t.LastCompletedDate.HasValue && t.NextDueDate.HasValue) ?? new List<MaintenanceTask>();
+        if (completedTasks.Any())
+        {
+            averageCompletionTime = completedTasks.Average(t => (t.LastCompletedDate!.Value - t.NextDueDate!.Value).Days);
+        }
+
+        // Calculate total maintenance cost (simplified)
+        totalMaintenanceCost = maintenanceTasks?.Where(t => t.EstimatedCost.HasValue).Sum(t => t.EstimatedCost!.Value) ?? 0;
+
+        // Calculate category statistics
+        categoryStats = appliances?.GroupBy(a => a.Category)
+            .ToDictionary(g => g.Key ?? "Uncategorized", g => g.Count()) ?? new Dictionary<string, int>();
+
+        mostActiveCategory = categoryStats.OrderByDescending(x => x.Value).FirstOrDefault().Key;
+
+        // Get top performing appliances
+        topAppliances = appliances?.OrderByDescending(a => a.MaintenanceTasks?.Count() ?? 0).Take(5).ToList() ?? new List<Appliance>();
+
+        // Generate insights
+        GenerateInsights();
+    }
+
+    private void GenerateInsights()
+    {
+        insights.Clear();
+
+        if (overdueTasks?.Any() == true)
+        {
+            insights.Add($"You have {overdueTasks.Count()} overdue maintenance tasks that need attention.");
+        }
+
+        if (completionRate < 0.7)
+        {
+            insights.Add("Your completion rate is below 70%. Consider setting more realistic deadlines.");
+        }
+
+        if (averageCompletionTime > 7)
+        {
+            insights.Add("Tasks are taking an average of {averageCompletionTime:F1} days to complete. Consider breaking them into smaller tasks.");
+        }
+
+        if (totalMaintenanceCost > 1000)
+        {
+            insights.Add($"You've spent {totalMaintenanceCost:C} on maintenance this year. Consider preventive maintenance to reduce costs.");
+        }
+
+        if (!insights.Any())
+        {
+            insights.Add("Great job! Your maintenance schedule is well-managed.");
+        }
+    }
+
+    private double GetCompletionHeight(int monthIndex)
+    {
+        // Simplified chart data - in a real app, you'd calculate actual monthly completion rates
+        var random = new Random(monthIndex);
+        return random.Next(20, 90);
+    }
+
+    private string GetBarColor(int monthIndex)
+    {
+        var height = GetCompletionHeight(monthIndex);
+        return height > 70 ? "#28a745" : height > 40 ? "#ffc107" : "#dc3545";
+    }
+
+    private string GetCategoryColor(string category)
+    {
+        var colors = new[] { "#007bff", "#28a745", "#ffc107", "#dc3545", "#6f42c1", "#fd7e14", "#20c997", "#e83e8c" };
+        var index = Math.Abs(category.GetHashCode()) % colors.Length;
+        return colors[index];
+    }
+
+    private double GetCategoryPercentage(int count)
+    {
+        var total = categoryStats.Values.Sum();
+        return total > 0 ? (double)count / total : 0;
+    }
+
+    private IEnumerable<MaintenanceTask>? overdueTasks => maintenanceTasks?.Where(t => t.NextDueDate < DateTime.Now && !t.LastCompletedDate.HasValue);
+} 

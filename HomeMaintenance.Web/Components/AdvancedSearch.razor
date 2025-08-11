@@ -1,0 +1,288 @@
+@using HomeMaintenance.Core.Models
+
+<div class="advanced-search">
+    <div class="search-header">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">
+                <i class="bi bi-search"></i> Advanced Search
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleAdvanced">
+                <i class="bi @(isAdvancedVisible ? "bi-chevron-up" : "bi-chevron-down")"></i>
+                @(isAdvancedVisible ? "Hide" : "Show") Advanced
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Search -->
+    <div class="search-input-group mb-3">
+        <div class="input-group">
+            <span class="input-group-text">
+                <i class="bi bi-search"></i>
+            </span>
+            <input type="text" 
+                   class="form-control" 
+                   placeholder="Search by name, description, or category..."
+                   @bind="searchTerm" 
+                   @bind:event="oninput"
+                   @onkeyup="OnSearchInput" />
+            @if (!string.IsNullOrEmpty(searchTerm))
+            {
+                <button class="btn btn-outline-secondary" @onclick="ClearSearch">
+                    <i class="bi bi-x"></i>
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- Advanced Filters -->
+    @if (isAdvancedVisible)
+    {
+        <div class="advanced-filters">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" @bind="selectedCategory">
+                        <option value="">All Categories</option>
+                        @foreach (var category in availableCategories)
+                        {
+                            <option value="@category">@category</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" @bind="selectedStatus">
+                        <option value="">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Date Range</label>
+                    <select class="form-select" @bind="selectedDateRange">
+                        <option value="">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="quarter">This Quarter</option>
+                        <option value="year">This Year</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Sort By</label>
+                    <select class="form-select" @bind="selectedSortBy">
+                        <option value="name">Name</option>
+                        <option value="date">Date</option>
+                        <option value="priority">Priority</option>
+                        <option value="category">Category</option>
+                        <option value="status">Status</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Additional Filters -->
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Priority</label>
+                    <select class="form-select" @bind="selectedPriority">
+                        <option value="">All Priorities</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Assigned To</label>
+                    <select class="form-select" @bind="selectedAssignedTo">
+                        <option value="">All People</option>
+                        @foreach (var person in availablePeople)
+                        {
+                            <option value="@person">@person</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Cost Range</label>
+                    <select class="form-select" @bind="selectedCostRange">
+                        <option value="">Any Cost</option>
+                        <option value="free">Free</option>
+                        <option value="low">Low ($0-$50)</option>
+                        <option value="medium">Medium ($50-$200)</option>
+                        <option value="high">High ($200+)</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Tags</label>
+                    <input type="text" 
+                           class="form-control" 
+                           placeholder="Enter tags..."
+                           @bind="selectedTags" />
+                </div>
+            </div>
+
+            <!-- Filter Actions -->
+            <div class="row">
+                <div class="col">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" @onclick="ApplyFilters">
+                            <i class="bi bi-funnel"></i> Apply Filters
+                        </button>
+                        <button class="btn btn-outline-secondary" @onclick="ClearFilters">
+                            <i class="bi bi-x-circle"></i> Clear All
+                        </button>
+                        <button class="btn btn-outline-info" @onclick="SaveFilterPreset">
+                            <i class="bi bi-bookmark"></i> Save Preset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Active Filters -->
+    @if (activeFilters.Any())
+    {
+        <div class="active-filters mt-3">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="text-muted">Active filters:</span>
+                @foreach (var filter in activeFilters)
+                {
+                    <span class="badge bg-primary">
+                        @filter
+                        <button class="btn-close btn-close-white ms-1" 
+                                style="font-size: 0.5rem;"
+                                @onclick="() => RemoveFilter(filter)"></button>
+                    </span>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<SearchFilters> OnFiltersChanged { get; set; }
+    [Parameter] public List<string> AvailableCategories { get; set; } = new();
+    [Parameter] public List<string> AvailablePeople { get; set; } = new();
+
+    private string searchTerm = "";
+    private string selectedCategory = "";
+    private string selectedStatus = "";
+    private string selectedDateRange = "";
+    private string selectedSortBy = "name";
+    private string selectedPriority = "";
+    private string selectedAssignedTo = "";
+    private string selectedCostRange = "";
+    private string selectedTags = "";
+    private bool isAdvancedVisible = false;
+    private List<string> activeFilters = new();
+
+    private List<string> availableCategories => AvailableCategories.Any() ? AvailableCategories : new List<string> { "Kitchen", "Bathroom", "Living Room", "Bedroom", "Outdoor", "HVAC", "Plumbing", "Electrical" };
+    private List<string> availablePeople => AvailablePeople.Any() ? AvailablePeople : new List<string> { "John", "Jane", "Family", "Contractor" };
+
+    private async Task OnSearchInput()
+    {
+        await UpdateFilters();
+    }
+
+    private async Task ApplyFilters()
+    {
+        await UpdateFilters();
+    }
+
+    private async Task ClearFilters()
+    {
+        searchTerm = "";
+        selectedCategory = "";
+        selectedStatus = "";
+        selectedDateRange = "";
+        selectedSortBy = "name";
+        selectedPriority = "";
+        selectedAssignedTo = "";
+        selectedCostRange = "";
+        selectedTags = "";
+        activeFilters.Clear();
+        
+        await UpdateFilters();
+    }
+
+    private async Task ClearSearch()
+    {
+        searchTerm = "";
+        await UpdateFilters();
+    }
+
+    private void ToggleAdvanced()
+    {
+        isAdvancedVisible = !isAdvancedVisible;
+    }
+
+    private async Task RemoveFilter(string filter)
+    {
+        activeFilters.Remove(filter);
+        await UpdateFilters();
+    }
+
+    private async Task SaveFilterPreset()
+    {
+        // TODO: Implement filter preset saving
+        await Task.Delay(100);
+    }
+
+    private async Task UpdateFilters()
+    {
+        UpdateActiveFilters();
+        
+        var filters = new SearchFilters
+        {
+            SearchTerm = searchTerm,
+            Category = selectedCategory,
+            Status = selectedStatus,
+            DateRange = selectedDateRange,
+            SortBy = selectedSortBy,
+            Priority = selectedPriority,
+            AssignedTo = selectedAssignedTo,
+            CostRange = selectedCostRange,
+            Tags = selectedTags
+        };
+
+        await OnFiltersChanged.InvokeAsync(filters);
+    }
+
+    private void UpdateActiveFilters()
+    {
+        activeFilters.Clear();
+        
+        if (!string.IsNullOrEmpty(searchTerm))
+            activeFilters.Add($"Search: {searchTerm}");
+        if (!string.IsNullOrEmpty(selectedCategory))
+            activeFilters.Add($"Category: {selectedCategory}");
+        if (!string.IsNullOrEmpty(selectedStatus))
+            activeFilters.Add($"Status: {selectedStatus}");
+        if (!string.IsNullOrEmpty(selectedDateRange))
+            activeFilters.Add($"Date: {selectedDateRange}");
+        if (!string.IsNullOrEmpty(selectedPriority))
+            activeFilters.Add($"Priority: {selectedPriority}");
+        if (!string.IsNullOrEmpty(selectedAssignedTo))
+            activeFilters.Add($"Assigned: {selectedAssignedTo}");
+        if (!string.IsNullOrEmpty(selectedCostRange))
+            activeFilters.Add($"Cost: {selectedCostRange}");
+        if (!string.IsNullOrEmpty(selectedTags))
+            activeFilters.Add($"Tags: {selectedTags}");
+    }
+
+    public class SearchFilters
+    {
+        public string SearchTerm { get; set; } = "";
+        public string Category { get; set; } = "";
+        public string Status { get; set; } = "";
+        public string DateRange { get; set; } = "";
+        public string SortBy { get; set; } = "name";
+        public string Priority { get; set; } = "";
+        public string AssignedTo { get; set; } = "";
+        public string CostRange { get; set; } = "";
+        public string Tags { get; set; } = "";
+    }
+} 

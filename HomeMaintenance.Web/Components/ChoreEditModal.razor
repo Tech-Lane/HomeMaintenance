@@ -1,0 +1,157 @@
+@using HomeMaintenance.Core.Models
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<div class="modal fade" id="choreEditModal" tabindex="-1" aria-labelledby="choreEditModalLabel">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="choreEditModalLabel">Edit Chore</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        @if (Chore != null)
+        {
+          <EditForm Model="Chore" OnValidSubmit="Save">
+            <DataAnnotationsValidator />
+
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Title *</label>
+                  <InputText class="form-control" @bind-Value="Chore.Title" />
+                  <ValidationMessage For="@(() => Chore.Title)" />
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Description</label>
+                  <InputTextArea class="form-control" rows="3" @bind-Value="Chore.Description" />
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Category</label>
+                  <InputText class="form-control" @bind-Value="Chore.Category" />
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Priority</label>
+                  <InputSelect class="form-select" @bind-Value="Chore.Priority">
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                  </InputSelect>
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Frequency</label>
+                  <InputSelect class="form-select" @bind-Value="Chore.Frequency">
+                    <option value="">One-time</option>
+                    <option value="Daily">Daily</option>
+                    <option value="Weekly">Weekly</option>
+                    <option value="Monthly">Monthly</option>
+                    <option value="Yearly">Yearly</option>
+                  </InputSelect>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Frequency Interval</label>
+                  <InputNumber class="form-control" @bind-Value="Chore.FrequencyInterval" />
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Due Date</label>
+                  <InputDate class="form-control" @bind-Value="Chore.DueDate" />
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Assigned To</label>
+                  <InputText class="form-control" @bind-Value="Chore.AssignedTo" />
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Est. Time (minutes)</label>
+                  <InputNumber class="form-control" @bind-Value="Chore.EstimatedTimeMinutes" />
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                @if (isSubmitting)
+                {
+                  <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                  <span>Saving...</span>
+                }
+                else
+                {
+                  <i class="bi bi-check-circle me-2"></i>
+                  <span>Save Changes</span>
+                }
+              </button>
+            </div>
+          </EditForm>
+        }
+        else
+        {
+          <div class="text-center py-4">
+            <i class="bi bi-exclamation-triangle fs-1 text-muted"></i>
+            <h5 class="mt-3">Chore Not Found</h5>
+            <p class="text-muted">The requested chore could not be loaded.</p>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+@code {
+  [Parameter] public Chore? Chore { get; set; }
+  [Parameter] public EventCallback OnChoreUpdated { get; set; }
+
+  private bool isSubmitting = false;
+
+  public async Task ShowAsync()
+  {
+    try
+    {
+      await JSRuntime.InvokeVoidAsync("showModal", "choreEditModal");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error showing chore edit modal: {ex.Message}");
+    }
+  }
+
+  private async Task Save()
+  {
+    if (Chore == null) return;
+
+    isSubmitting = true;
+    try
+    {
+      var response = await Http.PutAsJsonAsync($"http://localhost:5062/api/chores/{Chore.Id}", Chore);
+      if (response.IsSuccessStatusCode)
+      {
+        await JSRuntime.InvokeVoidAsync("hideModal", "choreEditModal");
+        await OnChoreUpdated.InvokeAsync();
+      }
+      else
+      {
+        var err = await response.Content.ReadAsStringAsync();
+        Console.WriteLine($"Error updating chore: {err}");
+      }
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error updating chore: {ex.Message}");
+    }
+    finally
+    {
+      isSubmitting = false;
+    }
+  }
+}

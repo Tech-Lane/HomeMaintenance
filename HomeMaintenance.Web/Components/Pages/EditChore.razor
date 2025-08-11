@@ -1,0 +1,240 @@
+@page "/chores/{Id:int}/edit"
+@using HomeMaintenance.Core.Models
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Chore - Home Maintenance</PageTitle>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-5">📋 Edit Chore</h1>
+                    <p class="lead">Update chore information</p>
+                </div>
+                <a href="/chores/@Id" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Chore
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (chore != null)
+    {
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Edit Chore Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <EditForm Model="chore" OnValidSubmit="HandleValidSubmit">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+
+                            <div class="row">
+                                <div class="col-md-8 mb-3">
+                                    <label for="title" class="form-label">Title *</label>
+                                    <InputText id="title" class="form-control" @bind-Value="chore.Title" />
+                                    <ValidationMessage For="@(() => chore.Title)" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="priority" class="form-label">Priority</label>
+                                    <InputSelect id="priority" class="form-select" @bind-Value="chore.Priority">
+                                        <option value="">Select Priority</option>
+                                        <option value="High">High</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="Low">Low</option>
+                                    </InputSelect>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Description</label>
+                                <InputTextArea id="description" class="form-control" rows="3" @bind-Value="chore.Description" />
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="category" class="form-label">Category</label>
+                                    <InputSelect id="category" class="form-select" @bind-Value="chore.Category">
+                                        <option value="">Select Category</option>
+                                        <option value="Kitchen">Kitchen</option>
+                                        <option value="Bathroom">Bathroom</option>
+                                        <option value="Bedroom">Bedroom</option>
+                                        <option value="Living Room">Living Room</option>
+                                        <option value="Laundry">Laundry</option>
+                                        <option value="Outdoor">Outdoor</option>
+                                        <option value="Other">Other</option>
+                                    </InputSelect>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="assignedTo" class="form-label">Assigned To</label>
+                                    <InputText id="assignedTo" class="form-control" @bind-Value="chore.AssignedTo" placeholder="e.g., John, Jane, Family" />
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="dueDate" class="form-label">Due Date</label>
+                                    <InputDate id="dueDate" class="form-control" @bind-Value="chore.DueDate" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="estimatedTimeMinutes" class="form-label">Estimated Duration (minutes)</label>
+                                    <InputNumber id="estimatedTimeMinutes" class="form-control" @bind-Value="chore.EstimatedTimeMinutes" />
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="frequency" class="form-label">Frequency</label>
+                                    <InputSelect id="frequency" class="form-select" @bind-Value="chore.Frequency">
+                                        <option value="">Select Frequency</option>
+                                        <option value="Daily">Daily</option>
+                                        <option value="Weekly">Weekly</option>
+                                        <option value="Monthly">Monthly</option>
+                                        <option value="Yearly">Yearly</option>
+                                        <option value="One-time">One-time</option>
+                                    </InputSelect>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="frequencyInterval" class="form-label">Interval</label>
+                                    <InputNumber id="frequencyInterval" class="form-control" @bind-Value="chore.FrequencyInterval" />
+                                    <small class="form-text text-muted">Number of frequency units (e.g., every 2 weeks)</small>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Description</label>
+                                <InputTextArea id="description" class="form-control" rows="4" @bind-Value="chore.Description" />
+                                <small class="form-text text-muted">Detailed description or instructions for completing this chore</small>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="reminderDaysBefore" class="form-label">Reminder Days Before</label>
+                                    <InputNumber id="reminderDaysBefore" class="form-control" @bind-Value="chore.ReminderDaysBefore" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="sendReminders" class="form-label">Send Reminders</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="sendReminders" @bind="chore.SendReminders" />
+                                        <label class="form-check-label" for="sendReminders">
+                                            Enable reminders for this chore
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <a href="/chores/@Id" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span>Saving...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check-circle me-2"></i>
+                                        <span>Update Chore</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (isLoading)
+    {
+        <div class="row">
+            <div class="col">
+                <div class="text-center py-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3">Loading chore...</p>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col">
+                <div class="text-center py-5">
+                    <i class="bi bi-exclamation-triangle fs-1 text-warning"></i>
+                    <h3 class="mt-3">Chore Not Found</h3>
+                    <p class="text-muted">The chore you're trying to edit doesn't exist or has been removed.</p>
+                    <a href="/chores" class="btn btn-primary">
+                        <i class="bi bi-arrow-left"></i> Back to Chores
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Chore? chore;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadChore();
+    }
+
+    private async Task LoadChore()
+    {
+        try
+        {
+            chore = await Http.GetFromJsonAsync<Chore>($"http://localhost:5062/api/chores/{Id}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading chore: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isSubmitting = true;
+        
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"http://localhost:5062/api/chores/{Id}", chore);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                Navigation.NavigateTo($"/chores/{Id}");
+            }
+            else
+            {
+                // Handle error
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error updating chore: {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating chore: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+} 

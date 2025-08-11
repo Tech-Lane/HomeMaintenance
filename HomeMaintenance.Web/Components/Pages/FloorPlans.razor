@@ -1,0 +1,532 @@
+@page "/floor-plans"
+@using HomeMaintenance.Core.Models
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>Floor Plans - Home Maintenance</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-4 fw-bold text-gradient">🏠 Floor Plans</h1>
+                    <p class="lead text-muted">Visualize your home layout and maintenance areas</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" @onclick="RefreshFloorPlans">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <button class="btn btn-primary" @onclick="AddFloorPlan">
+                        <i class="bi bi-plus-circle"></i> Add Floor Plan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floor Plan Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-gradient-primary border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="card-title text-white mb-1">@(floorPlans?.Count() ?? 0)</h3>
+                            <p class="card-text text-white-50 mb-0">Floor Plans</p>
+                            <small class="text-white-75">@(totalRooms ?? 0) rooms mapped</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-building text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-gradient-success border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="card-title text-white mb-1">@(totalArea?.ToString("F0") ?? "0")</h3>
+                            <p class="card-text text-white-50 mb-0">Total Area</p>
+                            <small class="text-white-75">sq ft</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-arrows-angle-expand text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-gradient-warning border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="card-title text-white mb-1">@(maintenanceAreas?.Count() ?? 0)</h3>
+                            <p class="card-text text-white-50 mb-0">Maintenance Areas</p>
+                            <small class="text-white-75">@(overdueAreas?.Count() ?? 0) need attention</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-tools text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-gradient-info border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="card-title text-white mb-1">@(appliances?.Count() ?? 0)</h3>
+                            <p class="card-text text-white-50 mb-0">Appliances</p>
+                            <small class="text-white-75">mapped to rooms</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-plug text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floor Plan Selector -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">Select Floor Plan</h5>
+                            <small class="text-muted">Choose a floor to view and manage</small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <select class="form-select" style="width: auto;" @bind="selectedFloorPlan">
+                                <option value="">All Floors</option>
+                                @foreach (var floor in floorPlans ?? new List<FloorPlan>())
+                                {
+                                    <option value="@floor.Id">@floor.Name</option>
+                                }
+                            </select>
+                            <button class="btn btn-outline-secondary" @onclick="ToggleViewMode">
+                                <i class="bi @(is3DView ? "bi-eye" : "bi-eye-fill")"></i>
+                                @(is3DView ? "2D" : "3D")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floor Plan Display -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-building"></i> 
+                        @(selectedFloorPlanName ?? "Floor Plan Overview")
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="floor-plan-container">
+                        <FloorPlanner @ref="planner" />
+                        <div class="d-flex gap-2 mt-3 flex-wrap">
+                            <input class="form-control" style="max-width: 260px;" placeholder="Floor plan name" @bind="currentPlanName" />
+                            <button class="btn btn-outline-success" @onclick="SavePlan"><i class="bi bi-save"></i> Save</button>
+                            <button class="btn btn-outline-secondary" @onclick="LoadPlan"><i class="bi bi-folder2-open"></i> Load</button>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <select class="form-select" style="min-width: 220px;" @bind="selectedPlanId" @onchange="OnSelectedPlanChanged">
+                                    <option value="">Select saved plan...</option>
+                                    @if (plans?.Any() == true)
+                                    {
+                                        @foreach (var p in plans)
+                                        {
+                                            <option value="@p.Id">@p.Name (@p.UpdatedAt.ToLocalTime().ToString("g"))</option>
+                                        }
+                                    }
+                                </select>
+                                <button class="btn btn-outline-primary" title="Refresh list" @onclick="RefreshPlanList"><i class="bi bi-arrow-clockwise"></i></button>
+                                <button class="btn btn-primary" disabled="@(string.IsNullOrWhiteSpace(selectedPlanId))" @onclick="LoadSelected"><i class="bi bi-download"></i> Load Selected</button>
+                                <button class="btn btn-outline-warning" disabled="@(string.IsNullOrWhiteSpace(selectedPlanId) || string.IsNullOrWhiteSpace(currentPlanName))" @onclick="RenameSelected"><i class="bi bi-pencil-square"></i> Rename</button>
+                                <button class="btn btn-outline-danger" disabled="@(string.IsNullOrWhiteSpace(selectedPlanId))" @onclick="DeleteSelected"><i class="bi bi-trash"></i> Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Room Details Panel -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> Room Details</h5>
+                </div>
+                <div class="card-body">
+                    @if (selectedRoom != null)
+                    {
+                        <div class="room-info">
+                            <h6>@selectedRoom.Name</h6>
+                            <p class="text-muted">@selectedRoom.Description</p>
+                            
+                            <div class="room-stats">
+                                <div class="stat-item">
+                                    <i class="bi bi-arrows-angle-expand"></i>
+                                    <span>@selectedRoom.Area sq ft</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-plug"></i>
+                                    <span>@selectedRoom.ApplianceCount appliances</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-tools"></i>
+                                    <span>@selectedRoom.MaintenanceTasks tasks</span>
+                                </div>
+                            </div>
+
+                            @if (selectedRoom.Appliances?.Any() == true)
+                            {
+                                <div class="appliances-list mt-3">
+                                    <h6>Appliances</h6>
+                                    @foreach (var appliance in selectedRoom.Appliances.Take(5))
+                                    {
+                                        <div class="appliance-item">
+                                            <i class="bi bi-plug"></i>
+                                            <span>@appliance.Name</span>
+                                            <span class="status @GetApplianceStatus(appliance)">@GetApplianceStatus(appliance)</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <i class="bi bi-mouse text-muted" style="font-size: 3rem;"></i>
+                            <h6 class="mt-3 text-muted">Click a Room</h6>
+                            <p class="text-muted">Click on any room in the floor plan to view details</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Maintenance Overview -->
+            <div class="card shadow-sm mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-tools"></i> Maintenance Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="maintenance-summary">
+                        @if (maintenanceAreas?.Any() == true)
+                        {
+                            @foreach (var area in maintenanceAreas.Take(3))
+                            {
+                                <div class="maintenance-item @area.Priority">
+                                    <div class="maintenance-icon">
+                                        <i class="bi bi-tools"></i>
+                                    </div>
+                                    <div class="maintenance-content">
+                                        <strong>@area.Name</strong>
+                                        <p class="mb-0">@area.Description</p>
+                                        <small class="text-muted">@area.DueDate?.ToString("MMM dd")</small>
+                                    </div>
+                                    <div class="maintenance-status">
+                                        <span class="badge @GetPriorityClass(area.Priority)">@area.Priority</span>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center py-3">
+                                <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                                <p class="text-muted mt-2 mb-0">No maintenance needed</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<FloorPlan>? floorPlans;
+    private List<Room>? rooms;
+    private List<Appliance>? appliances;
+    private List<MaintenanceArea>? maintenanceAreas;
+    private int? selectedFloorPlan;
+    private Room? selectedRoom;
+    private bool is3DView = false;
+    private FloorPlanner? planner;
+    private string currentPlanId = string.Empty;
+    private string currentPlanName = string.Empty;
+    private List<FloorPlanApiDto> plans = new();
+    private string selectedPlanId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFloorPlanData();
+    }
+
+    private async Task RefreshFloorPlans()
+    {
+        await LoadFloorPlanData();
+        await RefreshPlanList();
+        StateHasChanged();
+    }
+
+    private async Task LoadFloorPlanData()
+    {
+        try
+        {
+            // Simulate loading data
+            floorPlans = GenerateSampleFloorPlans();
+            rooms = GenerateSampleRooms();
+            appliances = await Http.GetFromJsonAsync<List<Appliance>>("http://localhost:5062/api/appliances") ?? new List<Appliance>();
+            maintenanceAreas = GenerateSampleMaintenanceAreas();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading floor plan data: {ex.Message}");
+            floorPlans = new List<FloorPlan>();
+            rooms = new List<Room>();
+            appliances = new List<Appliance>();
+            maintenanceAreas = new List<MaintenanceArea>();
+        }
+    }
+
+    private void AddFloorPlan()
+    {
+        // TODO: Implement add floor plan functionality
+    }
+
+    private void ToggleViewMode()
+    {
+        is3DView = !is3DView;
+    }
+
+    private async Task SavePlan()
+    {
+        try
+        {
+            var json = await (planner?.ExportAsync() ?? Task.FromResult("{}"));
+            var dto = new { Id = string.IsNullOrWhiteSpace(currentPlanId) ? null : currentPlanId, Name = currentPlanName, Json = json };
+            var resp = await Http.PostAsJsonAsync("http://localhost:5062/api/floorplans", dto);
+            if (resp.IsSuccessStatusCode)
+            {
+                var saved = await resp.Content.ReadFromJsonAsync<FloorPlanApiDto>();
+                currentPlanId = saved?.Id ?? currentPlanId;
+                await RefreshPlanList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SavePlan error: {ex.Message}");
+        }
+    }
+
+    private async Task LoadPlan()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(currentPlanId)) return;
+            var dto = await Http.GetFromJsonAsync<FloorPlanApiDto>($"http://localhost:5062/api/floorplans/{currentPlanId}");
+            if (dto != null)
+            {
+                currentPlanName = dto.Name;
+                await (planner?.LoadAsync(dto.Json) ?? Task.CompletedTask);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"LoadPlan error: {ex.Message}");
+        }
+    }
+
+    private async Task RefreshPlanList()
+    {
+        try
+        {
+            var list = await Http.GetFromJsonAsync<List<FloorPlanApiDto>>("http://localhost:5062/api/floorplans");
+            plans = list ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"RefreshPlanList error: {ex.Message}");
+        }
+    }
+
+    private Task OnSelectedPlanChanged(ChangeEventArgs e)
+    {
+        selectedPlanId = e.Value?.ToString() ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private async Task LoadSelected()
+    {
+        if (string.IsNullOrWhiteSpace(selectedPlanId)) return;
+        currentPlanId = selectedPlanId;
+        await LoadPlan();
+    }
+
+    private async Task RenameSelected()
+    {
+        if (string.IsNullOrWhiteSpace(selectedPlanId) || string.IsNullOrWhiteSpace(currentPlanName)) return;
+        try
+        {
+            var dto = new { Name = currentPlanName };
+            var resp = await Http.PutAsJsonAsync($"http://localhost:5062/api/floorplans/{selectedPlanId}", dto);
+            if (resp.IsSuccessStatusCode)
+            {
+                await RefreshPlanList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"RenameSelected error: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteSelected()
+    {
+        if (string.IsNullOrWhiteSpace(selectedPlanId)) return;
+        try
+        {
+            var resp = await Http.DeleteAsync($"http://localhost:5062/api/floorplans/{selectedPlanId}");
+            if (resp.IsSuccessStatusCode || resp.StatusCode == System.Net.HttpStatusCode.NoContent)
+            {
+                if (currentPlanId == selectedPlanId)
+                {
+                    currentPlanId = string.Empty;
+                    currentPlanName = string.Empty;
+                }
+                selectedPlanId = string.Empty;
+                await RefreshPlanList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"DeleteSelected error: {ex.Message}");
+        }
+    }
+
+    private class FloorPlanApiDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Json { get; set; } = "{}";
+        public DateTime UpdatedAt { get; set; }
+    }
+
+    private string? selectedFloorPlanName => floorPlans?.FirstOrDefault(f => f.Id == selectedFloorPlan)?.Name;
+
+    private int GetApplianceCount(string roomType)
+    {
+        return appliances?.Count(a => a.Location?.ToLower() == roomType) ?? 0;
+    }
+
+    private string GetMaintenanceStatus(string roomType)
+    {
+        var roomMaintenance = maintenanceAreas?.Where(m => m.Room?.ToLower() == roomType);
+        if (roomMaintenance?.Any(m => m.Priority == "critical") == true) return "critical";
+        if (roomMaintenance?.Any(m => m.Priority == "high") == true) return "high";
+        if (roomMaintenance?.Any(m => m.Priority == "medium") == true) return "medium";
+        return "good";
+    }
+
+    private string GetApplianceStatus(Appliance appliance)
+    {
+        // Simulate appliance status
+        return new Random(appliance.Id).Next(1, 4) switch
+        {
+            1 => "operational",
+            2 => "needs-maintenance",
+            3 => "repair-needed",
+            _ => "operational"
+        };
+    }
+
+    private string GetPriorityClass(string priority)
+    {
+        return priority switch
+        {
+            "critical" => "bg-danger",
+            "high" => "bg-warning",
+            "medium" => "bg-info",
+            "low" => "bg-secondary",
+            _ => "bg-secondary"
+        };
+    }
+
+    private List<FloorPlan> GenerateSampleFloorPlans()
+    {
+        return new List<FloorPlan>
+        {
+            new FloorPlan { Id = 1, Name = "Ground Floor", Description = "Main living area", TotalArea = 1200 },
+            new FloorPlan { Id = 2, Name = "Upper Floor", Description = "Bedrooms and bathrooms", TotalArea = 800 },
+            new FloorPlan { Id = 3, Name = "Basement", Description = "Storage and utilities", TotalArea = 600 }
+        };
+    }
+
+    private List<Room> GenerateSampleRooms()
+    {
+        return new List<Room>
+        {
+            new Room { Name = "Kitchen", Description = "Main kitchen area", Area = 200, ApplianceCount = 5, MaintenanceTasks = 2 },
+            new Room { Name = "Living Room", Description = "Main living area", Area = 300, ApplianceCount = 2, MaintenanceTasks = 1 },
+            new Room { Name = "Bedroom", Description = "Master bedroom", Area = 250, ApplianceCount = 3, MaintenanceTasks = 0 },
+            new Room { Name = "Bathroom", Description = "Main bathroom", Area = 100, ApplianceCount = 4, MaintenanceTasks = 1 },
+            new Room { Name = "Garage", Description = "Two-car garage", Area = 400, ApplianceCount = 1, MaintenanceTasks = 1 }
+        };
+    }
+
+    private List<MaintenanceArea> GenerateSampleMaintenanceAreas()
+    {
+        return new List<MaintenanceArea>
+        {
+            new MaintenanceArea { Name = "Kitchen Sink", Description = "Leaky faucet needs repair", Room = "kitchen", Priority = "medium", DueDate = DateTime.Now.AddDays(7) },
+            new MaintenanceArea { Name = "HVAC Filter", Description = "Air filter replacement", Room = "living-room", Priority = "high", DueDate = DateTime.Now.AddDays(3) },
+            new MaintenanceArea { Name = "Garage Door", Description = "Spring replacement needed", Room = "garage", Priority = "critical", DueDate = DateTime.Now.AddDays(1) }
+        };
+    }
+
+    // Computed properties for statistics
+    private int? totalRooms => rooms?.Count;
+    private double? totalArea => floorPlans?.Sum(f => f.TotalArea);
+    private List<MaintenanceArea>? overdueAreas => maintenanceAreas?.Where(m => m.DueDate < DateTime.Now).ToList();
+
+    public class FloorPlan
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public double TotalArea { get; set; }
+    }
+
+    public class Room
+    {
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public double Area { get; set; }
+        public int ApplianceCount { get; set; }
+        public int MaintenanceTasks { get; set; }
+        public List<Appliance>? Appliances { get; set; }
+    }
+
+    public class MaintenanceArea
+    {
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Room { get; set; } = "";
+        public string Priority { get; set; } = "medium";
+        public DateTime? DueDate { get; set; }
+    }
+} 

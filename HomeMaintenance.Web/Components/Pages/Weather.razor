@@ -1,0 +1,460 @@
+﻿@page "/weather"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Weather - Home Maintenance</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-4 fw-bold text-gradient">🌤️ Weather Dashboard</h1>
+                    <p class="lead text-muted">Plan your outdoor maintenance based on weather conditions</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" @onclick="RefreshWeather">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <button class="btn btn-primary" @onclick="GetLocation">
+                        <i class="bi bi-geo-alt"></i> Update Location
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Weather -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card weather-card shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div class="current-weather">
+                                <h2 class="temperature">@(currentWeather?.Temperature?.ToString() ?? "N/A")°F</h2>
+                                <p class="weather-description">@(currentWeather?.Description ?? "Loading...")</p>
+                                <div class="weather-details">
+                                    <div class="detail-item">
+                                        <i class="bi bi-droplet"></i>
+                                        <span>Humidity: @(currentWeather?.Humidity?.ToString() ?? "N/A")%</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="bi bi-wind"></i>
+                                        <span>Wind: @(currentWeather?.WindSpeed?.ToString() ?? "N/A") mph</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="bi bi-eye"></i>
+                                        <span>Visibility: @(currentWeather?.Visibility?.ToString() ?? "N/A") mi</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-center">
+                            <div class="weather-icon">
+                                <i class="bi @GetWeatherIcon(currentWeather?.Condition)"></i>
+                            </div>
+                            <div class="location-info">
+                                <h5>@(currentWeather?.Location ?? "Loading location...")</h5>
+                                <small class="text-muted">@DateTime.Now.ToString("MMMM dd, yyyy")</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Maintenance Recommendations</h5>
+                </div>
+                <div class="card-body">
+                    <div class="recommendations-list">
+                        @if (maintenanceRecommendations.Any())
+                        {
+                            @foreach (var recommendation in maintenanceRecommendations)
+                            {
+                                <div class="recommendation-item @recommendation.Priority">
+                                    <div class="recommendation-icon">
+                                        <i class="bi @recommendation.Icon"></i>
+                                    </div>
+                                    <div class="recommendation-content">
+                                        <strong>@recommendation.Title</strong>
+                                        <p class="mb-0">@recommendation.Description</p>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <i class="bi bi-cloud-sun text-muted" style="font-size: 3rem;"></i>
+                                <h6 class="mt-3 text-muted">No recommendations</h6>
+                                <p class="text-muted">Weather conditions are good for maintenance</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forecast -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-calendar-week"></i> 7-Day Forecast</h5>
+                </div>
+                <div class="card-body">
+                    <div class="forecast-container">
+                        @for (int i = 0; i < 7; i++)
+                        {
+                            var day = DateTime.Now.AddDays(i);
+                            var forecast = GetForecastForDay(i);
+                            <div class="forecast-day">
+                                <div class="forecast-date">
+                                    <strong>@day.ToString("ddd")</strong>
+                                    <small>@day.ToString("MMM dd")</small>
+                                </div>
+                                <div class="forecast-icon">
+                                    <i class="bi @GetWeatherIcon(forecast?.Condition)"></i>
+                                </div>
+                                <div class="forecast-temp">
+                                    <span class="high">@(forecast?.High?.ToString() ?? "N/A")°</span>
+                                    <span class="low">@(forecast?.Low?.ToString() ?? "N/A")°</span>
+                                </div>
+                                <div class="forecast-desc">
+                                    @(forecast?.Description ?? "N/A")
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weather Alerts -->
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Weather Alerts</h5>
+                </div>
+                <div class="card-body">
+                    @if (weatherAlerts.Any())
+                    {
+                        <div class="alerts-list">
+                            @foreach (var alert in weatherAlerts)
+                            {
+                                <div class="alert-item @alert.Severity">
+                                    <div class="alert-icon">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                    </div>
+                                    <div class="alert-content">
+                                        <strong>@alert.Title</strong>
+                                        <p class="mb-0">@alert.Description</p>
+                                        <small class="text-muted">@alert.ExpiresAt?.ToString("MMM dd, HH:mm")</small>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                            <h6 class="mt-3 text-success">No Weather Alerts</h6>
+                            <p class="text-muted">Weather conditions are normal</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> Weather Trends</h5>
+                </div>
+                <div class="card-body">
+                    <div class="trends-container">
+                        <div class="trend-item">
+                            <div class="trend-label">Temperature Trend</div>
+                            <div class="trend-value @GetTemperatureTrend()">
+                                <i class="bi @GetTrendIcon("temperature")"></i>
+                                @GetTemperatureTrendText()
+                            </div>
+                        </div>
+                        <div class="trend-item">
+                            <div class="trend-label">Precipitation Chance</div>
+                            <div class="trend-value">
+                                <i class="bi bi-cloud-rain"></i>
+                                @(precipitationChance?.ToString() ?? "N/A")%
+                            </div>
+                        </div>
+                        <div class="trend-item">
+                            <div class="trend-label">UV Index</div>
+                            <div class="trend-value @GetUVIndexClass()">
+                                <i class="bi bi-sun"></i>
+                                @(uvIndex?.ToString() ?? "N/A")
+                            </div>
+                        </div>
+                        <div class="trend-item">
+                            <div class="trend-label">Air Quality</div>
+                            <div class="trend-value @GetAirQualityClass()">
+                                <i class="bi bi-wind"></i>
+                                @(airQuality ?? "N/A")
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private WeatherData? currentWeather;
+    private List<WeatherData> forecast = new();
+    private List<WeatherAlert> weatherAlerts = new();
+    private List<MaintenanceRecommendation> maintenanceRecommendations = new();
+    private int? precipitationChance;
+    private int? uvIndex;
+    private string? airQuality;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWeatherData();
+        GenerateRecommendations();
+    }
+
+    private async Task RefreshWeather()
+    {
+        await LoadWeatherData();
+        GenerateRecommendations();
+        StateHasChanged();
+    }
+
+    private async Task GetLocation()
+    {
+        // TODO: Implement location detection
+        await Task.Delay(100);
+    }
+
+    private async Task LoadWeatherData()
+    {
+        try
+        {
+            // Simulate weather data - in a real app, you'd call a weather API
+            currentWeather = new WeatherData
+            {
+                Temperature = 72,
+                Description = "Partly Cloudy",
+                Condition = "partly-cloudy",
+                Humidity = 65,
+                WindSpeed = 8,
+                Visibility = 10,
+                Location = "New York, NY"
+            };
+
+            // Generate sample forecast
+            forecast = Enumerable.Range(0, 7).Select(i => new WeatherData
+            {
+                Temperature = 70 + new Random(i).Next(-10, 10),
+                High = 75 + new Random(i).Next(-5, 15),
+                Low = 60 + new Random(i).Next(-10, 10),
+                Description = GetRandomWeatherDescription(i),
+                Condition = GetRandomWeatherCondition(i)
+            }).ToList();
+
+            // Generate sample alerts
+            weatherAlerts = new List<WeatherAlert>();
+            if (new Random().Next(1, 10) > 7)
+            {
+                weatherAlerts.Add(new WeatherAlert
+                {
+                    Title = "Heat Advisory",
+                    Description = "High temperatures expected. Stay hydrated and avoid outdoor work during peak hours.",
+                    Severity = "warning",
+                    ExpiresAt = DateTime.Now.AddHours(6)
+                });
+            }
+
+            precipitationChance = new Random().Next(0, 100);
+            uvIndex = new Random().Next(1, 11);
+            airQuality = new[] { "Good", "Moderate", "Poor" }[new Random().Next(0, 3)];
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading weather data: {ex.Message}");
+        }
+    }
+
+    private void GenerateRecommendations()
+    {
+        maintenanceRecommendations.Clear();
+
+        if (currentWeather?.Temperature > 85)
+        {
+            maintenanceRecommendations.Add(new MaintenanceRecommendation
+            {
+                Title = "Avoid Outdoor Work",
+                Description = "High temperatures. Schedule outdoor maintenance for early morning or evening.",
+                Priority = "warning",
+                Icon = "bi-exclamation-triangle"
+            });
+        }
+
+        if (precipitationChance > 60)
+        {
+            maintenanceRecommendations.Add(new MaintenanceRecommendation
+            {
+                Title = "Rain Expected",
+                Description = "High chance of rain. Postpone outdoor painting or sealing work.",
+                Priority = "info",
+                Icon = "bi-cloud-rain"
+            });
+        }
+
+        if (uvIndex > 7)
+        {
+            maintenanceRecommendations.Add(new MaintenanceRecommendation
+            {
+                Title = "High UV Index",
+                Description = "Wear sunscreen and protective clothing for outdoor work.",
+                Priority = "warning",
+                Icon = "bi-sun"
+            });
+        }
+
+        if (currentWeather?.WindSpeed > 15)
+        {
+            maintenanceRecommendations.Add(new MaintenanceRecommendation
+            {
+                Title = "High Winds",
+                Description = "Avoid working on ladders or elevated surfaces.",
+                Priority = "danger",
+                Icon = "bi-wind"
+            });
+        }
+    }
+
+    private string GetWeatherIcon(string? condition)
+    {
+        return condition switch
+        {
+            "sunny" => "bi-sun",
+            "cloudy" => "bi-cloud",
+            "partly-cloudy" => "bi-cloud-sun",
+            "rainy" => "bi-cloud-rain",
+            "snowy" => "bi-cloud-snow",
+            "stormy" => "bi-cloud-lightning-rain",
+            _ => "bi-cloud"
+        };
+    }
+
+    private WeatherData? GetForecastForDay(int dayIndex)
+    {
+        return dayIndex < forecast.Count ? forecast[dayIndex] : null;
+    }
+
+    private string GetRandomWeatherDescription(int seed)
+    {
+        var descriptions = new[] { "Sunny", "Partly Cloudy", "Cloudy", "Light Rain", "Clear" };
+        return descriptions[new Random(seed).Next(0, descriptions.Length)];
+    }
+
+    private string GetRandomWeatherCondition(int seed)
+    {
+        var conditions = new[] { "sunny", "partly-cloudy", "cloudy", "rainy", "clear" };
+        return conditions[new Random(seed).Next(0, conditions.Length)];
+    }
+
+    private string GetTemperatureTrend()
+    {
+        return new Random().Next(1, 4) switch
+        {
+            1 => "trending-up",
+            2 => "trending-down",
+            _ => "stable"
+        };
+    }
+
+    private string GetTrendIcon(string type)
+    {
+        return type switch
+        {
+            "temperature" => GetTemperatureTrend() switch
+            {
+                "trending-up" => "bi-arrow-up",
+                "trending-down" => "bi-arrow-down",
+                _ => "bi-dash"
+            },
+            _ => "bi-dash"
+        };
+    }
+
+    private string GetTemperatureTrendText()
+    {
+        return GetTemperatureTrend() switch
+        {
+            "trending-up" => "Rising",
+            "trending-down" => "Falling",
+            _ => "Stable"
+        };
+    }
+
+    private string GetUVIndexClass()
+    {
+        return uvIndex switch
+        {
+            <= 2 => "low",
+            <= 5 => "moderate",
+            <= 7 => "high",
+            <= 10 => "very-high",
+            _ => "extreme"
+        };
+    }
+
+    private string GetAirQualityClass()
+    {
+        return airQuality?.ToLower() switch
+        {
+            "good" => "good",
+            "moderate" => "moderate",
+            "poor" => "poor",
+            _ => "unknown"
+        };
+    }
+
+    public class WeatherData
+    {
+        public int? Temperature { get; set; }
+        public int? High { get; set; }
+        public int? Low { get; set; }
+        public string? Description { get; set; }
+        public string? Condition { get; set; }
+        public int? Humidity { get; set; }
+        public int? WindSpeed { get; set; }
+        public int? Visibility { get; set; }
+        public string? Location { get; set; }
+    }
+
+    public class WeatherAlert
+    {
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Severity { get; set; } = "info";
+        public DateTime? ExpiresAt { get; set; }
+    }
+
+    public class MaintenanceRecommendation
+    {
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Priority { get; set; } = "info";
+        public string Icon { get; set; } = "bi-info-circle";
+    }
+}

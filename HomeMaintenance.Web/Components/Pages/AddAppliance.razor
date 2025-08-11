@@ -1,0 +1,178 @@
+@page "/appliances/add"
+@using HomeMaintenance.Core.Models
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>Add Appliance - Home Maintenance</PageTitle>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-5">🔧 Add Appliance</h1>
+                    <p class="lead">Add a new appliance to your home maintenance system</p>
+                </div>
+                <a href="/appliances" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Appliances
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Appliance Information</h5>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="appliance" OnValidSubmit="HandleValidSubmit">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="name" class="form-label">Name *</label>
+                                <InputText id="name" class="form-control" @bind-Value="appliance.Name" />
+                                <ValidationMessage For="@(() => appliance.Name)" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="category" class="form-label">Category</label>
+                                <InputSelect id="category" class="form-select" @bind-Value="appliance.Category">
+                                    <option value="">Select Category</option>
+                                    <option value="Kitchen">Kitchen</option>
+                                    <option value="Laundry">Laundry</option>
+                                    <option value="HVAC">HVAC</option>
+                                    <option value="Electronics">Electronics</option>
+                                    <option value="Plumbing">Plumbing</option>
+                                    <option value="Other">Other</option>
+                                </InputSelect>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="brand" class="form-label">Brand</label>
+                                <InputText id="brand" class="form-control" @bind-Value="appliance.Brand" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="model" class="form-label">Model</label>
+                                <InputText id="model" class="form-control" @bind-Value="appliance.Model" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="serialNumber" class="form-label">Serial Number</label>
+                                <InputText id="serialNumber" class="form-control" @bind-Value="appliance.SerialNumber" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="location" class="form-label">Location</label>
+                                <InputText id="location" class="form-control" @bind-Value="appliance.Location" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="purchaseDate" class="form-label">Purchase Date</label>
+                                <InputDate id="purchaseDate" class="form-control" @bind-Value="appliance.PurchaseDate" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="purchasePrice" class="form-label">Purchase Price</label>
+                                <InputNumber id="purchasePrice" class="form-control" @bind-Value="appliance.PurchasePrice" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="warrantyExpirationDate" class="form-label">Warranty Expiration Date</label>
+                                <InputDate id="warrantyExpirationDate" class="form-control" @bind-Value="appliance.WarrantyExpirationDate" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="extendedWarrantyExpirationDate" class="form-label">Extended Warranty Expiration Date</label>
+                                <InputDate id="extendedWarrantyExpirationDate" class="form-control" @bind-Value="appliance.ExtendedWarrantyExpirationDate" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="manualUrl" class="form-label">Manual URL</label>
+                                <InputText id="manualUrl" class="form-control" @bind-Value="appliance.ManualUrl" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="photoUrl" class="form-label">Photo URL</label>
+                                <InputText id="photoUrl" class="form-control" @bind-Value="appliance.PhotoUrl" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes</label>
+                            <InputTextArea id="notes" class="form-control" rows="3" @bind-Value="appliance.Notes" />
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="/appliances" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    <span>Saving...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-check-circle me-2"></i>
+                                    <span>Save Appliance</span>
+                                }
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private Appliance appliance = new();
+    private bool isSubmitting = false;
+
+    protected override void OnInitialized()
+    {
+        // Initialize with default values
+        appliance.CreatedAt = DateTime.UtcNow;
+        appliance.IsActive = true;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isSubmitting = true;
+        
+        try
+        {
+            var response = await Http.PostAsJsonAsync("http://localhost:5062/api/appliances", appliance);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var createdAppliance = await response.Content.ReadFromJsonAsync<Appliance>();
+                Navigation.NavigateTo($"/appliances/{createdAppliance?.Id}");
+            }
+            else
+            {
+                // Handle error
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error creating appliance: {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating appliance: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+} 

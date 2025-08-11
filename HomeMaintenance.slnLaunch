@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "HomeMaintenance.API\\HomeMaintenance.API.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "HomeMaintenance.Web\\HomeMaintenance.Web.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

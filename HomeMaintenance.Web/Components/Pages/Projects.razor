@@ -1,0 +1,717 @@
+@page "/projects"
+@rendermode InteractiveServer
+@using HomeMaintenance.Core.Models
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<PageTitle>Projects - Home Maintenance</PageTitle>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-4 fw-bold text-gradient">📋 Project Management</h1>
+                    <p class="lead text-muted">Manage complex home improvement and maintenance projects</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" @onclick="RefreshProjects">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <button class="btn btn-primary" @onclick="NavigateToAddProject">
+                        <i class="bi bi-plus-circle"></i> New Project
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-gradient-primary border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="card-title text-white mb-1">@(projects?.Count() ?? 0)</h3>
+                            <p class="card-text text-white-50 mb-0">Total Projects</p>
+                            <small class="text-white-75">@(activeProjects?.Count() ?? 0) active</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-kanban text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-gradient-success border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="card-title text-white mb-1">@(completedProjects?.Count() ?? 0)</h3>
+                            <p class="card-text text-white-50 mb-0">Completed</p>
+                            <small class="text-white-75">@(completionRate?.ToString("P0") ?? "0%") success rate</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-check-circle text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-gradient-warning border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="card-title text-white mb-1">@(totalBudget?.ToString("C") ?? "$0")</h3>
+                            <p class="card-text text-white-50 mb-0">Total Budget</p>
+                            <small class="text-white-75">@(budgetUtilization?.ToString("P0") ?? "0%") utilized</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-currency-dollar text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card bg-gradient-info border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="card-title text-white mb-1">@(averageDuration?.ToString("F1") ?? "0")</h3>
+                            <p class="card-text text-white-50 mb-0">Avg. Duration</p>
+                            <small class="text-white-75">Days per project</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-clock text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Filters -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" @bind="selectedStatus">
+                                <option value="">All Statuses</option>
+                                <option value="planning">Planning</option>
+                                <option value="in-progress">In Progress</option>
+                                <option value="on-hold">On Hold</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Priority</label>
+                            <select class="form-select" @bind="selectedPriority">
+                                <option value="">All Priorities</option>
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" @bind="selectedCategory">
+                                <option value="">All Categories</option>
+                                <option value="renovation">Renovation</option>
+                                <option value="repair">Repair</option>
+                                <option value="maintenance">Maintenance</option>
+                                <option value="improvement">Improvement</option>
+                                <option value="emergency">Emergency</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Sort By</label>
+                            <select class="form-select" @bind="selectedSortBy">
+                                <option value="name">Name</option>
+                                <option value="priority">Priority</option>
+                                <option value="status">Status</option>
+                                <option value="start-date">Start Date</option>
+                                <option value="due-date">Due Date</option>
+                                <option value="budget">Budget</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Grid -->
+    <div class="row">
+        @if (filteredProjects?.Any() == true)
+        {
+            @foreach (var project in filteredProjects)
+            {
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card project-card shadow-sm h-100">
+                        <div class="card-header @GetStatusClass(project.Status)">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">@project.Name</h6>
+                                <span class="badge @GetPriorityClass(project.Priority)">@project.Priority</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text text-muted">@project.Description</p>
+                            
+                            <div class="project-details">
+                                <div class="detail-row">
+                                    <i class="bi bi-calendar"></i>
+                                    <span>@project.StartDate?.ToString("MMM dd, yyyy") - @project.DueDate?.ToString("MMM dd, yyyy")</span>
+                                </div>
+                                <div class="detail-row">
+                                    <i class="bi bi-currency-dollar"></i>
+                                    <span>Budget: @project.Budget?.ToString("C")</span>
+                                </div>
+                                <div class="detail-row">
+                                    <i class="bi bi-person"></i>
+                                    <span>@project.AssignedTo</span>
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar -->
+                            <div class="progress-section mt-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted">Progress</small>
+                                    <small class="text-muted">@(project.Progress ?? 0)%</small>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar @GetProgressClass(project.Progress)" 
+                                         style="width: @(project.Progress ?? 0)%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Tasks Summary -->
+                            <div class="tasks-summary mt-3">
+                                <small class="text-muted">
+                                    @(project.CompletedTasks ?? 0) of @(project.TotalTasks ?? 0) tasks completed
+                                </small>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-primary" @onclick="@(() => ViewProject(project.Id))" title="View Details">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-outline-warning" @onclick="@(() => EditProject(project.Id))" title="Edit Project">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </button>
+                                    <button class="btn btn-outline-danger" @onclick="@(() => DeleteProject(project.Id))" title="Delete Project">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </div>
+                                <small class="text-muted">@GetTimeRemaining(project.DueDate)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="bi bi-kanban text-muted" style="font-size: 4rem;"></i>
+                    <h4 class="mt-3 text-muted">No Projects Found</h4>
+                    <p class="text-muted">Create your first project to get started</p>
+                    <button class="btn btn-primary" @onclick="NavigateToAddProject">
+                        <i class="bi bi-plus-circle"></i> Create Project
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- View Project Modal -->
+<div class="modal fade" id="projectViewModal" tabindex="-1" aria-labelledby="projectViewModalLabel">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="projectViewModalLabel">Project Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        @if (selectedProject != null)
+        {
+          <div class="row g-4">
+            <div class="col-md-6">
+              <div class="card shadow-sm h-100">
+                <div class="card-body">
+                  <h6 class="text-muted mb-3">Basic Info</h6>
+                  <dl class="row mb-0">
+                    <dt class="col-sm-4">Name</dt>
+                    <dd class="col-sm-8">@selectedProject.Name</dd>
+                    <dt class="col-sm-4">Description</dt>
+                    <dd class="col-sm-8 text-muted">@selectedProject.Description</dd>
+                    <dt class="col-sm-4">Category</dt>
+                    <dd class="col-sm-8"><span class="badge bg-secondary">@selectedProject.Category</span></dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card shadow-sm h-100">
+                <div class="card-body">
+                  <h6 class="text-muted mb-3">Status & Metrics</h6>
+                  <dl class="row mb-0">
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8"><span class="badge @GetStatusClass(selectedProject.Status)">@selectedProject.Status</span></dd>
+                    <dt class="col-sm-4">Priority</dt>
+                    <dd class="col-sm-8"><span class="badge @GetPriorityClass(selectedProject.Priority)">@selectedProject.Priority</span></dd>
+                    <dt class="col-sm-4">Budget</dt>
+                    <dd class="col-sm-8">@selectedProject.Budget?.ToString("C")</dd>
+                    <dt class="col-sm-4">Dates</dt>
+                    <dd class="col-sm-8">@selectedProject.StartDate?.ToString("MMM dd, yyyy") - @selectedProject.DueDate?.ToString("MMM dd, yyyy")</dd>
+                    <dt class="col-sm-4">Progress</dt>
+                    <dd class="col-sm-8">@(selectedProject.Progress ?? 0)%</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+        else
+        {
+          <div class="text-center py-4">
+            <i class="bi bi-exclamation-triangle fs-1 text-muted"></i>
+            <h5 class="mt-3">Project Not Found</h5>
+            <p class="text-muted">The requested project could not be loaded.</p>
+          </div>
+        }
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        @if (selectedProject != null)
+        {
+          <button type="button" class="btn btn-warning" @onclick="(() => EditProject(selectedProject.Id))">
+            <i class="bi bi-pencil me-2"></i>Edit
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+  
+</div>
+
+<!-- Edit Project Modal -->
+<div class="modal fade" id="projectEditModal" tabindex="-1" aria-labelledby="projectEditModalLabel">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="projectEditModalLabel">Edit Project</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        @if (editingProject != null)
+        {
+          <EditForm Model="editingProject" OnValidSubmit="SaveProject">
+            <DataAnnotationsValidator />
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Name *</label>
+                  <InputText class="form-control" @bind-Value="editingProject.Name" />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Description</label>
+                  <InputTextArea class="form-control" rows="3" @bind-Value="editingProject.Description" />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Status</label>
+                  <InputSelect class="form-select" @bind-Value="editingProject.Status">
+                    <option value="planning">Planning</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="on-hold">On Hold</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </InputSelect>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Priority</label>
+                  <InputSelect class="form-select" @bind-Value="editingProject.Priority">
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </InputSelect>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">Category</label>
+                  <InputText class="form-control" @bind-Value="editingProject.Category" />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Start Date</label>
+                  <InputDate class="form-control" @bind-Value="editingProject.StartDate" />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Due Date</label>
+                  <InputDate class="form-control" @bind-Value="editingProject.DueDate" />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Budget</label>
+                  <InputNumber class="form-control" @bind-Value="editingProject.Budget" step="0.01" />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Progress (%)</label>
+                  <InputNumber class="form-control" @bind-Value="editingProject.Progress" />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Assigned To</label>
+                  <InputText class="form-control" @bind-Value="editingProject.AssignedTo" />
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                @if (isSaving)
+                {
+                  <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                  <span>Saving...</span>
+                }
+                else
+                {
+                  <i class="bi bi-check-circle me-2"></i>
+                  <span>Save Changes</span>
+                }
+              </button>
+            </div>
+          </EditForm>
+        }
+        else
+        {
+          <div class="text-center py-4">
+            <i class="bi bi-exclamation-triangle fs-1 text-muted"></i>
+            <h5 class="mt-3">Project Not Found</h5>
+            <p class="text-muted">The requested project could not be loaded.</p>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+@code {
+    private List<Project>? projects;
+    private List<Project>? filteredProjects;
+    private string selectedStatus = "";
+    private string selectedPriority = "";
+    private string selectedCategory = "";
+    private string selectedSortBy = "name";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProjects();
+    }
+
+    private async Task RefreshProjects()
+    {
+        await LoadProjects();
+        StateHasChanged();
+    }
+
+    private async Task LoadProjects()
+    {
+        try
+        {
+            // Simulate loading projects - in a real app, you'd call your API
+            projects = GenerateSampleProjects();
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading projects: {ex.Message}");
+            projects = new List<Project>();
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        if (projects == null) return;
+
+        filteredProjects = projects.AsEnumerable().ToList();
+
+        if (!string.IsNullOrEmpty(selectedStatus))
+        {
+            filteredProjects = filteredProjects.Where(p => p.Status == selectedStatus).ToList();
+        }
+
+        if (!string.IsNullOrEmpty(selectedPriority))
+        {
+            filteredProjects = filteredProjects.Where(p => p.Priority == selectedPriority).ToList();
+        }
+
+        if (!string.IsNullOrEmpty(selectedCategory))
+        {
+            filteredProjects = filteredProjects.Where(p => p.Category == selectedCategory).ToList();
+        }
+
+        // Apply sorting
+        var sortedProjects = selectedSortBy switch
+        {
+            "name" => filteredProjects.OrderBy(p => p.Name),
+            "priority" => filteredProjects.OrderByDescending(p => GetPriorityWeight(p.Priority)),
+            "status" => filteredProjects.OrderBy(p => p.Status),
+            "start-date" => filteredProjects.OrderBy(p => p.StartDate),
+            "due-date" => filteredProjects.OrderBy(p => p.DueDate),
+            "budget" => filteredProjects.OrderByDescending(p => p.Budget),
+            _ => filteredProjects.OrderBy(p => p.Name)
+        };
+        filteredProjects = sortedProjects.ToList();
+
+        filteredProjects = filteredProjects.ToList();
+    }
+
+    private List<Project> GenerateSampleProjects()
+    {
+        return new List<Project>
+        {
+            new Project
+            {
+                Id = 1,
+                Name = "Kitchen Renovation",
+                Description = "Complete kitchen remodel including cabinets, countertops, and appliances",
+                Status = "in-progress",
+                Priority = "high",
+                Category = "renovation",
+                StartDate = DateTime.Now.AddDays(-30),
+                DueDate = DateTime.Now.AddDays(60),
+                Budget = 25000,
+                Progress = 45,
+                CompletedTasks = 9,
+                TotalTasks = 20,
+                AssignedTo = "John & Jane"
+            },
+            new Project
+            {
+                Id = 2,
+                Name = "HVAC System Replacement",
+                Description = "Replace aging HVAC system with energy-efficient units",
+                Status = "planning",
+                Priority = "critical",
+                Category = "repair",
+                StartDate = DateTime.Now.AddDays(10),
+                DueDate = DateTime.Now.AddDays(45),
+                Budget = 8000,
+                Progress = 15,
+                CompletedTasks = 3,
+                TotalTasks = 15,
+                AssignedTo = "Contractor"
+            },
+            new Project
+            {
+                Id = 3,
+                Name = "Deck Repair",
+                Description = "Fix loose boards and replace damaged sections of the deck",
+                Status = "completed",
+                Priority = "medium",
+                Category = "repair",
+                StartDate = DateTime.Now.AddDays(-60),
+                DueDate = DateTime.Now.AddDays(-10),
+                Budget = 3000,
+                Progress = 100,
+                CompletedTasks = 8,
+                TotalTasks = 8,
+                AssignedTo = "John"
+            }
+        };
+    }
+
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "planning" => "bg-info",
+            "in-progress" => "bg-warning",
+            "on-hold" => "bg-secondary",
+            "completed" => "bg-success",
+            "cancelled" => "bg-danger",
+            _ => "bg-light"
+        };
+    }
+
+    private string GetPriorityClass(string priority)
+    {
+        return priority switch
+        {
+            "low" => "bg-secondary",
+            "medium" => "bg-info",
+            "high" => "bg-warning",
+            "critical" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetProgressClass(int? progress)
+    {
+        return progress switch
+        {
+            >= 80 => "bg-success",
+            >= 60 => "bg-info",
+            >= 40 => "bg-warning",
+            >= 20 => "bg-secondary",
+            _ => "bg-light"
+        };
+    }
+
+    private int GetPriorityWeight(string priority)
+    {
+        return priority switch
+        {
+            "critical" => 4,
+            "high" => 3,
+            "medium" => 2,
+            "low" => 1,
+            _ => 0
+        };
+    }
+
+    private string GetTimeRemaining(DateTime? dueDate)
+    {
+        if (!dueDate.HasValue) return "No due date";
+        
+        var remaining = dueDate.Value - DateTime.Now;
+        return remaining.TotalDays switch
+        {
+            > 30 => $"{(int)remaining.TotalDays / 30} months",
+            > 7 => $"{(int)remaining.TotalDays} days",
+            > 0 => $"{(int)remaining.TotalDays} days",
+            _ => "Overdue"
+        };
+    }
+
+    private Project? selectedProject;
+    private Project? editingProject;
+    private bool isSaving = false;
+
+    private async Task ViewProject(int id)
+    {
+        selectedProject = projects?.FirstOrDefault(p => p.Id == id);
+        if (selectedProject != null)
+        {
+            await JSRuntime.InvokeVoidAsync("showModal", "projectViewModal");
+        }
+    }
+
+    private async Task EditProject(int id)
+    {
+        var source = projects?.FirstOrDefault(p => p.Id == id);
+        if (source != null)
+        {
+            // Clone to avoid binding directly to list item
+            editingProject = new Project
+            {
+                Id = source.Id,
+                Name = source.Name,
+                Description = source.Description,
+                Status = source.Status,
+                Priority = source.Priority,
+                Category = source.Category,
+                StartDate = source.StartDate,
+                DueDate = source.DueDate,
+                Budget = source.Budget,
+                Progress = source.Progress,
+                CompletedTasks = source.CompletedTasks,
+                TotalTasks = source.TotalTasks,
+                AssignedTo = source.AssignedTo
+            };
+            await JSRuntime.InvokeVoidAsync("showModal", "projectEditModal");
+        }
+    }
+
+    private async Task SaveProject()
+    {
+        if (editingProject == null || projects == null) return;
+        isSaving = true;
+        try
+        {
+            var existing = projects.FirstOrDefault(p => p.Id == editingProject.Id);
+            if (existing != null)
+            {
+                existing.Name = editingProject.Name;
+                existing.Description = editingProject.Description;
+                existing.Status = editingProject.Status;
+                existing.Priority = editingProject.Priority;
+                existing.Category = editingProject.Category;
+                existing.StartDate = editingProject.StartDate;
+                existing.DueDate = editingProject.DueDate;
+                existing.Budget = editingProject.Budget;
+                existing.Progress = editingProject.Progress;
+                existing.CompletedTasks = editingProject.CompletedTasks;
+                existing.TotalTasks = editingProject.TotalTasks;
+                existing.AssignedTo = editingProject.AssignedTo;
+            }
+            ApplyFilters();
+            await JSRuntime.InvokeVoidAsync("hideModal", "projectEditModal");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeleteProject(int id)
+    {
+        try
+        {
+            Console.WriteLine($"Deleting project {id}");
+            // TODO: Implement project deletion
+            await Task.Delay(100);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting project: {ex.Message}");
+        }
+    }
+
+    private void NavigateToAddProject()
+    {
+        Navigation.NavigateTo("/projects/add");
+    }
+
+
+
+    // Computed properties for statistics
+    private List<Project>? activeProjects => projects?.Where(p => p.Status == "in-progress" || p.Status == "planning").ToList() ?? new List<Project>();
+    private List<Project>? completedProjects => projects?.Where(p => p.Status == "completed").ToList() ?? new List<Project>();
+    private double? completionRate => projects?.Any() == true ? (double)(completedProjects?.Count() ?? 0) / projects.Count : 0;
+    private decimal? totalBudget => projects?.Where(p => p.Budget.HasValue).Sum(p => p.Budget!.Value);
+    private double? budgetUtilization => totalBudget > 0 ? 0.65 : 0; // Simulated
+    private double? averageDuration => projects?.Where(p => p.StartDate.HasValue && p.DueDate.HasValue)
+        .Average(p => (p.DueDate!.Value - p.StartDate!.Value).TotalDays) ?? 0;
+
+    public class Project
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Status { get; set; } = "planning";
+        public string Priority { get; set; } = "medium";
+        public string Category { get; set; } = "";
+        public DateTime? StartDate { get; set; }
+        public DateTime? DueDate { get; set; }
+        public decimal? Budget { get; set; }
+        public int? Progress { get; set; }
+        public int? CompletedTasks { get; set; }
+        public int? TotalTasks { get; set; }
+        public string AssignedTo { get; set; } = "";
+    }
+} 

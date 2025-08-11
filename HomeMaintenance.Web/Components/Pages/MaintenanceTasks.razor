@@ -1,0 +1,560 @@
+@page "/maintenance-tasks"
+@rendermode InteractiveServer
+@using HomeMaintenance.Core.Models
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<ConfirmationDialog @ref="confirmationDialog" 
+                   Title="Delete Maintenance Task" 
+                   Message="Are you sure you want to delete this maintenance task?" 
+                   Details="This action cannot be undone. All completion records will also be removed."
+                   ConfirmText="Delete Task"
+                   OnConfirm="ConfirmDeleteTask" />
+
+<TaskCompletionModal @ref="taskCompletionModal"
+                    TaskType="Maintenance"
+                    TaskId="@taskToComplete"
+                    OnTaskCompleted="OnTaskCompleted" />
+
+<TaskViewModal @ref="taskViewModal"
+              Task="@taskToView"
+              Appliances="@appliances"
+              OnEditTask="EditTask" />
+
+<TaskEditModal @ref="taskEditModal"
+              Task="@taskToEdit"
+              Appliances="@appliances"
+              OnTaskUpdated="OnTaskUpdated" />
+
+<PageTitle>Maintenance Tasks - Home Maintenance</PageTitle>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-5">🔧 Maintenance Tasks</h1>
+                    <p class="lead">Manage scheduled maintenance tasks for your appliances and home systems</p>
+                </div>
+                <a href="/maintenance-tasks/add" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Add Task
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">@(overdueTasks?.Count() ?? 0)</h4>
+                            <p class="card-text">Overdue</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-exclamation-triangle fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">@(dueThisWeek?.Count() ?? 0)</h4>
+                            <p class="card-text">Due This Week</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-calendar-week fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">@(dueThisMonth?.Count() ?? 0)</h4>
+                            <p class="card-text">Due This Month</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-calendar-month fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">@(completedThisMonth?.Count() ?? 0)</h4>
+                            <p class="card-text">Completed This Month</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-check-circle fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-2">
+                            <label for="statusFilter" class="form-label">Status</label>
+                            <select id="statusFilter" class="form-select" @bind="statusFilter" @bind:after="FilterTasks">
+                                <option value="">All</option>
+                                <option value="overdue">Overdue</option>
+                                <option value="due-this-week">Due This Week</option>
+                                <option value="due-this-month">Due This Month</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="priorityFilter" class="form-label">Priority</label>
+                            <select id="priorityFilter" class="form-select" @bind="priorityFilter" @bind:after="FilterTasks">
+                                <option value="">All</option>
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="frequencyFilter" class="form-label">Frequency</label>
+                            <select id="frequencyFilter" class="form-select" @bind="frequencyFilter" @bind:after="FilterTasks">
+                                <option value="">All</option>
+                                <option value="Daily">Daily</option>
+                                <option value="Weekly">Weekly</option>
+                                <option value="Monthly">Monthly</option>
+                                <option value="Yearly">Yearly</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="applianceFilter" class="form-label">Appliance</label>
+                            <select id="applianceFilter" class="form-select" @bind="applianceFilter" @bind:after="FilterTasks">
+                                <option value="">All Appliances</option>
+                                @if (appliances != null)
+                                {
+                                    @foreach (var appliance in appliances)
+                                    {
+                                        <option value="@appliance.Id">@appliance.Name</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">
+                                <i class="bi bi-x-circle"></i> Clear Filters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tasks Table -->
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Task</th>
+                                    <th>Appliance</th>
+                                    <th>Due Date</th>
+                                    <th>Frequency</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (filteredTasks?.Any() == true)
+                                {
+                                    @foreach (var task in filteredTasks)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div>
+                                                    <strong>@task.Title</strong>
+                                                    @if (!string.IsNullOrEmpty(task.Description))
+                                                    {
+                                                        <br><small class="text-muted">@task.Description</small>
+                                                    }
+                                                </div>
+                                            </td>
+                                            <td>
+                                                @if (task.ApplianceId.HasValue && appliances != null)
+                                                {
+                                                    var appliance = appliances.FirstOrDefault(a => a.Id == task.ApplianceId);
+                                                    @(appliance?.Name ?? "Unknown")
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">General</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (task.NextDueDate.HasValue)
+                                                {
+                                                    var daysUntilDue = (task.NextDueDate.Value - DateTime.Now).Days;
+                                                    var statusClass = daysUntilDue < 0 ? "text-danger" : 
+                                                                   daysUntilDue <= 7 ? "text-warning" : "text-success";
+                                                    <span class="@statusClass">
+                                                        @task.NextDueDate.Value.ToString("MMM dd, yyyy")
+                                                        @if (daysUntilDue < 0)
+                                                        {
+                                                            <br><small class="text-danger">@Math.Abs(daysUntilDue) days overdue</small>
+                                                        }
+                                                        else if (daysUntilDue <= 7)
+                                                        {
+                                                            <br><small class="text-warning">@daysUntilDue days left</small>
+                                                        }
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">Not scheduled</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-secondary">
+                                                    @task.Frequency @(task.FrequencyInterval > 1 ? $"({task.FrequencyInterval})" : "")
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-@(task.Priority?.ToLower() switch { "high" => "danger", "medium" => "warning", _ => "secondary" })">
+                                                    @task.Priority
+                                                </span>
+                                            </td>
+                                            <td>
+                                                @{
+                                                    var taskStatus = task.NextDueDate switch
+                                                    {
+                                                        var date when date < DateTime.Now => "Overdue",
+                                                        var date when date <= DateTime.Now.AddDays(7) => "Due Soon",
+                                                        _ => "Scheduled"
+                                                    };
+                                                    var taskStatusClass = taskStatus switch
+                                                    {
+                                                        "Overdue" => "danger",
+                                                        "Due Soon" => "warning",
+                                                        _ => "success"
+                                                    };
+                                                }
+                                                <span class="badge bg-@taskStatusClass">@taskStatus</span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="@(() => ViewTask(task.Id))" title="View Details">
+                                                        <i class="bi bi-eye"></i> View
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-success btn-sm" @onclick="@(() => CompleteTask(task.Id))" title="Mark as Complete">
+                                                        <i class="bi bi-check-circle"></i> Complete
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-warning btn-sm" @onclick="@(() => EditTask(task.Id))" title="Edit Task">
+                                                        <i class="bi bi-pencil"></i> Edit
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-danger btn-sm" @onclick="@(() => DeleteTask(task.Id))" title="Delete Task">
+                                                        <i class="bi bi-trash"></i> Delete
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="7" class="text-center py-4">
+                                            <i class="bi bi-wrench fs-1 text-muted"></i>
+                                            <h5 class="mt-3">No Maintenance Tasks Found</h5>
+                                            <p class="text-muted">Get started by adding your first maintenance task.</p>
+                                            <a href="/maintenance-tasks/add" class="btn btn-primary">
+                                                <i class="bi bi-plus-circle"></i> Add Your First Task
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    @if (totalPages > 1)
+    {
+        <div class="row mt-4">
+            <div class="col">
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                            <button class="page-link" @onclick="@(() => ChangePage(currentPage - 1))">Previous</button>
+                        </li>
+                        @for (int i = 1; i <= totalPages; i++)
+                        {
+                            <li class="page-item @(i == currentPage ? "active" : "")">
+                                <button class="page-link" @onclick="@(() => ChangePage(i))">@i</button>
+                            </li>
+                        }
+                        <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                            <button class="page-link" @onclick="@(() => ChangePage(currentPage + 1))">Next</button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<MaintenanceTask>? allTasks;
+    private IEnumerable<MaintenanceTask>? filteredTasks;
+    private IEnumerable<Appliance>? appliances;
+    private IEnumerable<MaintenanceTask>? overdueTasks;
+    private IEnumerable<MaintenanceTask>? dueThisWeek;
+    private IEnumerable<MaintenanceTask>? dueThisMonth;
+    private IEnumerable<MaintenanceTask>? completedThisMonth;
+    
+    private string statusFilter = "";
+    private string priorityFilter = "";
+    private string frequencyFilter = "";
+    private string applianceFilter = "";
+    private int currentPage = 1;
+    private int pageSize = 20;
+    private int totalPages = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            // Load all tasks
+            allTasks = await Http.GetFromJsonAsync<IEnumerable<MaintenanceTask>>("http://localhost:5062/api/maintenancetasks");
+            
+            // Load appliances
+            appliances = await Http.GetFromJsonAsync<IEnumerable<Appliance>>("http://localhost:5062/api/appliances");
+            
+            // Load overdue tasks
+            overdueTasks = await Http.GetFromJsonAsync<IEnumerable<MaintenanceTask>>("http://localhost:5062/api/maintenancetasks/overdue");
+            
+            // Load upcoming tasks
+            var upcomingTasks = await Http.GetFromJsonAsync<IEnumerable<MaintenanceTask>>("http://localhost:5062/api/maintenancetasks/upcoming");
+            
+            // Calculate stats
+            var now = DateTime.Now;
+            var weekEnd = now.AddDays(7);
+            var monthEnd = now.AddMonths(1);
+            
+            dueThisWeek = allTasks?.Where(t => t.NextDueDate >= now && t.NextDueDate <= weekEnd) ?? new List<MaintenanceTask>();
+            dueThisMonth = allTasks?.Where(t => t.NextDueDate >= now && t.NextDueDate <= monthEnd) ?? new List<MaintenanceTask>();
+            completedThisMonth = allTasks?.Where(t => t.LastCompletedDate >= now.AddMonths(-1)) ?? new List<MaintenanceTask>();
+            
+            FilterTasks();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading data: {ex.Message}");
+            allTasks = new List<MaintenanceTask>();
+            appliances = new List<Appliance>();
+        }
+    }
+
+    private void FilterTasks()
+    {
+        if (allTasks == null)
+        {
+            filteredTasks = new List<MaintenanceTask>();
+            return;
+        }
+
+        var filtered = allTasks.AsEnumerable();
+
+        // Apply status filter
+        if (!string.IsNullOrEmpty(statusFilter))
+        {
+            var now = DateTime.Now;
+            filtered = statusFilter switch
+            {
+                "overdue" => filtered.Where(t => t.NextDueDate < now),
+                "due-this-week" => filtered.Where(t => t.NextDueDate >= now && t.NextDueDate <= now.AddDays(7)),
+                "due-this-month" => filtered.Where(t => t.NextDueDate >= now && t.NextDueDate <= now.AddMonths(1)),
+                "completed" => filtered.Where(t => t.LastCompletedDate.HasValue),
+                _ => filtered
+            };
+        }
+
+        // Apply priority filter
+        if (!string.IsNullOrEmpty(priorityFilter))
+        {
+            filtered = filtered.Where(t => t.Priority == priorityFilter);
+        }
+
+        // Apply frequency filter
+        if (!string.IsNullOrEmpty(frequencyFilter))
+        {
+            filtered = filtered.Where(t => t.Frequency == frequencyFilter);
+        }
+
+        // Apply appliance filter
+        if (!string.IsNullOrEmpty(applianceFilter) && int.TryParse(applianceFilter, out int applianceId))
+        {
+            filtered = filtered.Where(t => t.ApplianceId == applianceId);
+        }
+
+        // Apply pagination
+        totalPages = (int)Math.Ceiling((double)filtered.Count() / pageSize);
+        currentPage = Math.Max(1, Math.Min(currentPage, totalPages));
+        
+        filteredTasks = filtered
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+    }
+
+    private void ClearFilters()
+    {
+        statusFilter = "";
+        priorityFilter = "";
+        frequencyFilter = "";
+        applianceFilter = "";
+        currentPage = 1;
+        FilterTasks();
+    }
+
+    private void ChangePage(int page)
+    {
+        currentPage = page;
+        FilterTasks();
+    }
+
+    private TaskCompletionModal? taskCompletionModal;
+    private int taskToComplete = 0;
+
+    private async Task CompleteTask(int taskId)
+    {
+        try
+        {
+            Console.WriteLine($"CompleteTask called with taskId: {taskId}");
+            taskToComplete = taskId;
+            await taskCompletionModal!.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in CompleteTask: {ex.Message}");
+        }
+    }
+
+    private async Task OnTaskCompleted()
+    {
+        await LoadData();
+    }
+
+    private ConfirmationDialog? confirmationDialog;
+    private int taskToDelete = 0;
+
+    private async Task DeleteTask(int taskId)
+    {
+        try
+        {
+            Console.WriteLine($"DeleteTask called with taskId: {taskId}");
+            taskToDelete = taskId;
+            await confirmationDialog!.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in DeleteTask: {ex.Message}");
+        }
+    }
+
+    private async Task ConfirmDeleteTask()
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"http://localhost:5062/api/maintenancetasks/{taskToDelete}");
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadData();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting task: {ex.Message}");
+        }
+    }
+
+    private TaskViewModal? taskViewModal;
+    private TaskEditModal? taskEditModal;
+    private MaintenanceTask? taskToView;
+    private MaintenanceTask? taskToEdit;
+
+    private async Task ViewTask(int taskId)
+    {
+        try
+        {
+            Console.WriteLine($"ViewTask called with taskId: {taskId}");
+            
+            // Load the specific task
+            var task = await Http.GetFromJsonAsync<MaintenanceTask>($"http://localhost:5062/api/maintenancetasks/{taskId}");
+            if (task != null)
+            {
+                taskToView = task;
+                await taskViewModal!.ShowAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading task for view: {ex.Message}");
+        }
+    }
+
+    private async Task EditTask(int taskId)
+    {
+        try
+        {
+            Console.WriteLine($"EditTask called with taskId: {taskId}");
+            
+            // Load the specific task
+            var task = await Http.GetFromJsonAsync<MaintenanceTask>($"http://localhost:5062/api/maintenancetasks/{taskId}");
+            if (task != null)
+            {
+                taskToEdit = task;
+                await taskEditModal!.ShowAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading task for edit: {ex.Message}");
+        }
+    }
+
+    private async Task OnTaskUpdated()
+    {
+        await LoadData();
+    }
+
+} 

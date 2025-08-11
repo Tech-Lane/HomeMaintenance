@@ -1,0 +1,106 @@
+@inject IJSRuntime JSRuntime
+
+<div id="notification-container" class="notification-container">
+    @foreach (var notification in notifications)
+    {
+        <div class="notification @notification.Type @(notification.IsVisible ? "show" : "")" 
+             @key="notification.Id">
+            <div class="notification-content">
+                <div class="notification-icon">
+                    @if (notification.Type == "success")
+                    {
+                        <i class="bi bi-check-circle"></i>
+                    }
+                    else if (notification.Type == "error")
+                    {
+                        <i class="bi bi-exclamation-circle"></i>
+                    }
+                    else if (notification.Type == "warning")
+                    {
+                        <i class="bi bi-exclamation-triangle"></i>
+                    }
+                    else
+                    {
+                        <i class="bi bi-info-circle"></i>
+                    }
+                </div>
+                <div class="notification-body">
+                    <div class="notification-title">@notification.Title</div>
+                    <div class="notification-message">@notification.Message</div>
+                </div>
+                <button class="notification-close" @onclick="() => RemoveNotification(notification.Id)">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Notification> notifications = new();
+    private int nextId = 1;
+
+    public void ShowSuccess(string title, string message, int duration = 5000)
+    {
+        ShowNotification("success", title, message, duration);
+    }
+
+    public void ShowError(string title, string message, int duration = 7000)
+    {
+        ShowNotification("error", title, message, duration);
+    }
+
+    public void ShowWarning(string title, string message, int duration = 6000)
+    {
+        ShowNotification("warning", title, message, duration);
+    }
+
+    public void ShowInfo(string title, string message, int duration = 5000)
+    {
+        ShowNotification("info", title, message, duration);
+    }
+
+    private void ShowNotification(string type, string title, string message, int duration)
+    {
+        var notification = new Notification
+        {
+            Id = nextId++,
+            Type = type,
+            Title = title,
+            Message = message,
+            IsVisible = true
+        };
+
+        notifications.Add(notification);
+        StateHasChanged();
+
+        // Auto-remove after duration
+        _ = Task.Delay(duration).ContinueWith(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                RemoveNotification(notification.Id);
+                StateHasChanged();
+            });
+        });
+    }
+
+    private void RemoveNotification(int id)
+    {
+        var notification = notifications.FirstOrDefault(n => n.Id == id);
+        if (notification != null)
+        {
+            notification.IsVisible = false;
+            notifications.Remove(notification);
+        }
+    }
+
+    public class Notification
+    {
+        public int Id { get; set; }
+        public string Type { get; set; } = "info";
+        public string Title { get; set; } = "";
+        public string Message { get; set; } = "";
+        public bool IsVisible { get; set; } = false;
+    }
+} 

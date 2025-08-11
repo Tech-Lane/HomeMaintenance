@@ -1,0 +1,423 @@
+@page "/appliances"
+@rendermode InteractiveServer
+@using HomeMaintenance.Core.Models
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<ConfirmationDialog @ref="confirmationDialog" 
+                   Title="Delete Appliance" 
+                   Message="Are you sure you want to delete this appliance?" 
+                   Details="This action cannot be undone. All associated maintenance tasks will also be removed."
+                   ConfirmText="Delete Appliance"
+                   OnConfirm="ConfirmDeleteAppliance" />
+
+<PageTitle>Appliances - Home Maintenance</PageTitle>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-5">🔧 Appliances</h1>
+                    <p class="lead">Manage your home appliances and their maintenance schedules</p>
+                </div>
+                <a href="/appliances/add" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Add Appliance
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">@(allAppliances?.Count() ?? 0)</h4>
+                            <p class="card-text">Total Appliances</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-tools fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">@(expiringWarranties?.Count() ?? 0)</h4>
+                            <p class="card-text">Expiring Warranties</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-exclamation-triangle fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">@(categories?.Count() ?? 0)</h4>
+                            <p class="card-text">Categories</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-tags fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">@(totalValue?.ToString("C") ?? "$0")</h4>
+                            <p class="card-text">Total Value</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-currency-dollar fs-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="categoryFilter" class="form-label">Category</label>
+                            <select id="categoryFilter" class="form-select" @bind="selectedCategory" @bind:after="FilterAppliances">
+                                <option value="">All Categories</option>
+                                @if (categories != null)
+                                {
+                                    @foreach (var category in categories)
+                                    {
+                                        <option value="@category">@category</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="locationFilter" class="form-label">Location</label>
+                            <input type="text" id="locationFilter" class="form-control" placeholder="Filter by location" @bind="locationFilter" @bind:after="FilterAppliances" />
+                        </div>
+                        <div class="col-md-3">
+                            <label for="warrantyFilter" class="form-label">Warranty Status</label>
+                            <select id="warrantyFilter" class="form-select" @bind="warrantyFilter" @bind:after="FilterAppliances">
+                                <option value="">All</option>
+                                <option value="active">Active Warranty</option>
+                                <option value="expiring">Expiring Soon</option>
+                                <option value="expired">Expired</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">
+                                <i class="bi bi-x-circle"></i> Clear Filters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Appliances Grid -->
+    <div class="row">
+        @if (filteredAppliances?.Any() == true)
+        {
+            @foreach (var appliance in filteredAppliances)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">@appliance.Name</h5>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="/appliances/@appliance.Id">
+                                        <i class="bi bi-eye me-2"></i>View Details
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/appliances/@appliance.Id/edit">
+                                        <i class="bi bi-pencil me-2"></i>Edit
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/appliances/@appliance.Id/maintenance">
+                                        <i class="bi bi-wrench me-2"></i>Maintenance
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><button class="dropdown-item text-danger" @onclick="@(() => DeleteAppliance(appliance.Id))">
+                                        <i class="bi bi-trash me-2"></i>Delete
+                                    </button></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-2">
+                                <div class="col-6">
+                                    <small class="text-muted">Brand</small>
+                                    <div>@(appliance.Brand ?? "N/A")</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted">Model</small>
+                                    <div>@(appliance.Model ?? "N/A")</div>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-6">
+                                    <small class="text-muted">Location</small>
+                                    <div>@(appliance.Location ?? "N/A")</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted">Category</small>
+                                    <div>@(appliance.Category ?? "N/A")</div>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-6">
+                                    <small class="text-muted">Purchase Date</small>
+                                    <div>@(appliance.PurchaseDate?.ToString("MMM dd, yyyy") ?? "N/A")</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted">Purchase Price</small>
+                                    <div>@(appliance.PurchasePrice?.ToString("C") ?? "N/A")</div>
+                                </div>
+                            </div>
+                            @if (appliance.WarrantyExpirationDate.HasValue)
+                            {
+                                <div class="row mb-2">
+                                    <div class="col-12">
+                                        <small class="text-muted">Warranty Expires</small>
+                                        <div>
+                                            @{
+                                                var warrantyStatus = appliance.WarrantyExpirationDate.Value < DateTime.Now ? "Expired" :
+                                                                    appliance.WarrantyExpirationDate.Value < DateTime.Now.AddDays(30) ? "Expiring Soon" : "Active";
+                                                var badgeClass = warrantyStatus switch
+                                                {
+                                                    "Expired" => "bg-danger",
+                                                    "Expiring Soon" => "bg-warning",
+                                                    _ => "bg-success"
+                                                };
+                                            }
+                                            <span class="badge @badgeClass">@warrantyStatus</span>
+                                            @appliance.WarrantyExpirationDate.Value.ToString("MMM dd, yyyy")
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div class="card-footer">
+                            <div class="d-flex justify-content-between">
+                                <a href="/appliances/@appliance.Id" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> View Details
+                                </a>
+                                <a href="/appliances/@appliance.Id/maintenance" class="btn btn-sm btn-outline-warning">
+                                    <i class="bi bi-wrench"></i> Maintenance
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="bi bi-tools fs-1 text-muted"></i>
+                    <h3 class="mt-3">No Appliances Found</h3>
+                    <p class="text-muted">Get started by adding your first appliance.</p>
+                    <a href="/appliances/add" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Add Your First Appliance
+                    </a>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Pagination -->
+    @if (totalPages > 1)
+    {
+        <div class="row mt-4">
+            <div class="col">
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                            <button class="page-link" @onclick="@(() => ChangePage(currentPage - 1))">Previous</button>
+                        </li>
+                        @for (int i = 1; i <= totalPages; i++)
+                        {
+                            <li class="page-item @(i == currentPage ? "active" : "")">
+                                <button class="page-link" @onclick="@(() => ChangePage(i))">@i</button>
+                            </li>
+                        }
+                        <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                            <button class="page-link" @onclick="@(() => ChangePage(currentPage + 1))">Next</button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<Appliance>? allAppliances;
+    private IEnumerable<Appliance>? filteredAppliances;
+    private IEnumerable<Appliance>? expiringWarranties;
+    private IEnumerable<string>? categories;
+    private decimal? totalValue;
+    
+    private string selectedCategory = "";
+    private string locationFilter = "";
+    private string warrantyFilter = "";
+    private int currentPage = 1;
+    private int pageSize = 12;
+    private int totalPages = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAppliances();
+    }
+
+    private async Task LoadAppliances()
+    {
+        try
+        {
+            allAppliances = await Http.GetFromJsonAsync<IEnumerable<Appliance>>("http://localhost:5062/api/appliances");
+            
+            if (allAppliances != null)
+            {
+                // Calculate statistics
+                expiringWarranties = allAppliances.Where(a => 
+                    a.WarrantyExpirationDate.HasValue && 
+                    a.WarrantyExpirationDate.Value <= DateTime.Now.AddDays(30) &&
+                    a.WarrantyExpirationDate.Value > DateTime.Now).ToList();
+                
+                categories = allAppliances.Where(a => !string.IsNullOrEmpty(a.Category))
+                    .Select(a => a.Category!)
+                    .Distinct()
+                    .OrderBy(c => c)
+                    .ToList();
+                
+                totalValue = allAppliances.Where(a => a.PurchasePrice.HasValue)
+                    .Sum(a => a.PurchasePrice!.Value);
+            }
+            
+            FilterAppliances();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading appliances: {ex.Message}");
+            allAppliances = new List<Appliance>();
+        }
+    }
+
+    private void FilterAppliances()
+    {
+        if (allAppliances == null)
+        {
+            filteredAppliances = new List<Appliance>();
+            return;
+        }
+
+        var filtered = allAppliances.AsEnumerable();
+
+        // Apply category filter
+        if (!string.IsNullOrEmpty(selectedCategory))
+        {
+            filtered = filtered.Where(a => a.Category == selectedCategory);
+        }
+
+        // Apply location filter
+        if (!string.IsNullOrEmpty(locationFilter))
+        {
+            filtered = filtered.Where(a => a.Location?.Contains(locationFilter, StringComparison.OrdinalIgnoreCase) == true);
+        }
+
+        // Apply warranty filter
+        if (!string.IsNullOrEmpty(warrantyFilter))
+        {
+            filtered = warrantyFilter switch
+            {
+                "active" => filtered.Where(a => a.WarrantyExpirationDate > DateTime.Now),
+                "expiring" => filtered.Where(a => a.WarrantyExpirationDate <= DateTime.Now.AddDays(30) && a.WarrantyExpirationDate > DateTime.Now),
+                "expired" => filtered.Where(a => a.WarrantyExpirationDate <= DateTime.Now),
+                _ => filtered
+            };
+        }
+
+        // Apply pagination
+        totalPages = (int)Math.Ceiling((double)filtered.Count() / pageSize);
+        currentPage = Math.Max(1, Math.Min(currentPage, totalPages));
+        
+        filteredAppliances = filtered
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+    }
+
+    private void ClearFilters()
+    {
+        selectedCategory = "";
+        locationFilter = "";
+        warrantyFilter = "";
+        currentPage = 1;
+        FilterAppliances();
+    }
+
+    private void ChangePage(int page)
+    {
+        currentPage = page;
+        FilterAppliances();
+    }
+
+    private ConfirmationDialog? confirmationDialog;
+    private int applianceToDelete = 0;
+
+    private async Task DeleteAppliance(int applianceId)
+    {
+        try
+        {
+            Console.WriteLine($"Deleting appliance {applianceId}");
+            applianceToDelete = applianceId;
+            await confirmationDialog!.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in DeleteAppliance: {ex.Message}");
+        }
+    }
+
+    private async Task ConfirmDeleteAppliance()
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"http://localhost:5062/api/appliances/{applianceToDelete}");
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadAppliances();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting appliance: {ex.Message}");
+        }
+    }
+
+
+} 
