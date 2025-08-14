@@ -25,7 +25,7 @@ if (!app.Environment.IsDevelopment())
 app.UseAntiforgery();
 
 app.MapStaticAssets();
-app.MapRazorComponents<HomeMaintenance.Components.App>()
+app.MapRazorComponents<HomeMaintenance.Web.Components.App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();

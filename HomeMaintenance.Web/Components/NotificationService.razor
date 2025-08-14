@@ -3,8 +3,8 @@
 <div id="notification-container" class="notification-container">
     @foreach (var notification in notifications)
     {
-        <div class="notification @notification.Type @(notification.IsVisible ? "show" : "")" 
-             @key="notification.Id">
+        <div class="@GetNotificationCss(notification)" 
+             @key=notification.Id>
             <div class="notification-content">
                 <div class="notification-icon">
                     @if (notification.Type == "success")
@@ -93,6 +93,11 @@
             notification.IsVisible = false;
             notifications.Remove(notification);
         }
+    }
+
+    private static string GetNotificationCss(Notification n)
+    {
+        return $"notification {n.Type} {(n.IsVisible ? "show" : "")}";
     }
 
     public class Notification
